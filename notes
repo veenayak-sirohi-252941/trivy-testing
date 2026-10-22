@@ -1,0 +1,38 @@
+trivy fs  Vulnerabilities  scaanning  --scanners misconfig
+      Misconfigurations(--image-config-scanners misconfig,--image-config-scanners secret)
+
+     aftrer te build 
+
+          trivy image
+          trivy config ./iac-directory
+          trivy fs --scanners vuln,misconfig,secret ./myapp
+
+
+A. Vulnerability Database Cache (DB Cache)
+B. Scan Analysis Cache (Scan Cache)
+
+Advanced: Unified vs. Raw Scanning (--raw-config-scanners)
+
+
+rivy’s Cryptographic Asset Scanning (--scanners crypto) automatically audits digital certificates, cryptographic keys, and encryption algorithms inside a container image. It generates a Cryptography Bill of Materials (CBOM) embedded within a CycloneDX JSON report.
+
+2. Host the Database Internally
+
+Because security databases update daily, pre-baking trivy-db into the runner image will make your security scans stale over time. Instead:
+
+    Set up a daily cron job on an internet-connected machine to pull ghcr.io/aquasecurity/trivy-db:2 and mirror it to your internal container registry (e.g., Harbor, JFrog Artifactory, or AWS ECR).
+
+    Point your Trivy pipeline step to your internal mirror:
+
+YAML
+
+      - name: Run Trivy Scan (Internal DB Mirror)
+        run: |
+          trivy image \
+            --db-repository internal-registry.company.com/aquasecurity/trivy-db \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            my-app:latest
+
+
+trivy Vulnerability Exploitability Exchange (VEX)

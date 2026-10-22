@@ -1,0 +1,65 @@
+name: Trivy Security Scan 2
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+    inputs:
+      scan_path:
+        description: 'Path to scan (relative to repository root)'
+        required: false
+        default: 'jenkins'
+
+permissions:
+  contents: read
+
+jobs:
+  discover-and-scan:
+    name: Discover Projects & Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Install Trivy ─────────────────────────────────────────────────────
+      - name: Install Trivy
+        run: |
+          echo "::group::Installing Trivy"
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] \
+            https://aquasecurity.github.io/trivy-repo/deb \
+            $(lsb_release -sc) main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+          trivy --version
+          echo "::endgroup::"
+
+        # ── 4. Create report directories ─────────────────────────────────────────
+      - name: Create report directories
+        run: |
+          TIMESTAMP="$(date -u '+%Y%m%d_%H%M%S')"
+          echo "TIMESTAMP=$TIMESTAMP" >> "$GITHUB_ENV"
+          mkdir -p reports/json
+          echo "Reports will be saved under: reports/"
+
+
+
+# what is need in this ci 
+#1 trivy fs --scanners vuln,misconfig,secret   --severity HIGH,CRITICAL \ ./myapp --exit-code 0 not fial 
+#2   trivy config .
+#3 trivy image \--vex ./vex.json \sarvagram/service-utils-api:1.0.0
+
+
+
+#  trivy image sarvagram/service-utils-api:1.0.0 like this after the build
+# trivy image \--image-config-scanners misconfig,secret \   sarvagram/service-utils-api:1.0.0
+# trivy image \--scanners vuln,misconfig,secret \-image-config-scanners misconfig,secret \--severity HIGH,CRITICAL \sarvagram/service-utils-api:1.0.0

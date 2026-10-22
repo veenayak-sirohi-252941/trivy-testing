@@ -1,48 +1,415 @@
-# This workflow uses actions that are not certified by GitHub.
-# They are provided by a third-party and are governed by
-# separate terms of service, privacy policy, and support
-# documentation.
-
-name: trivy
+name: Trivy Security Scan 2
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master", "develop" ]
   pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ "main" ]
-  schedule:
-    - cron: '21 2 * * 2'
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+    inputs:
+      scan_path:
+        description: 'Path to scan (relative to repository root)'
+        required: false
+        default: 'jenkins'
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    permissions:
-      contents: read # for actions/checkout to fetch code
-      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
-      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
-    name: Build
+  discover-and-scan:
+    name: Discover Projects & Scan
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build an image from Dockerfile
+      # ── 2. Install Trivy ─────────────────────────────────────────────────────
+      - name: Install Trivy
         run: |
-          docker build -t docker.io/my-organization/my-app:${{ github.sha }} .
+          echo "::group::Installing Trivy"
+          sudo apt-get update -qq
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
+            | gpg --dearmor \
+            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] \
+            https://aquasecurity.github.io/trivy-repo/deb \
+            $(lsb_release -sc) main" \
+            | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update -qq
+          sudo apt-get install -y trivy
+          trivy --version
+          echo "::endgroup::"
 
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@7b7aa264d83dc58691451798b4d117d53d21edfe
-        with:
-          image-ref: 'docker.io/my-organization/my-app:${{ github.sha }}'
-          format: 'template'
-          template: '@/contrib/sarif.tpl'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+      # ── 3. Discover projects ─────────────────────────────────────────────────
+      - name: Discover projects to scan
+        id: discover
+        env:
+          SCAN_PATH: ${{ github.event.inputs.scan_path }}
+        run: |
+          SCAN_ROOT="${SCAN_PATH:-jenkins}"
 
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+          if [[ "$SCAN_ROOT" = /* || ! -d "$SCAN_ROOT" ]]; then
+            echo "::error::Scan path must be an existing directory relative to the repository root: $SCAN_ROOT"
+            exit 1
+          fi
+
+          SCAN_ROOT="$(realpath -e -- "$SCAN_ROOT")"
+          case "$SCAN_ROOT/" in
+            "$GITHUB_WORKSPACE/"*) ;;
+            *)
+              echo "::error::Scan path must resolve inside the repository: $SCAN_PATH"
+              exit 1
+              ;;
+          esac
+
+          echo "Scanning under: $SCAN_ROOT"
+          echo "──────────────────────────────────────────"
+
+          PROJECTS=()
+
+          while IFS= read -r dockerfile; do
+            dir="$(dirname "$dockerfile")"
+            PROJECTS+=("$dir")
+            echo "  ✔ Found Dockerfile: $dir"
+          done < <(find "$SCAN_ROOT" -name "Dockerfile" -not -path "*/.git/*" | sort)
+
+          if [[ ${#PROJECTS[@]} -eq 0 ]]; then
+            PROJECTS+=("$SCAN_ROOT")
+            echo "  No Dockerfiles found; scanning the selected project directory."
+          fi
+
+          echo ""
+          echo "Projects discovered : ${#PROJECTS[@]}"
+          echo ""
+
+          # Pass project list to subsequent steps via env file
+          printf '%s\n' "${PROJECTS[@]}" > /tmp/projects.txt
+          echo "project_count=${#PROJECTS[@]}" >> "$GITHUB_OUTPUT"
+
+      # ── 4. Create report directories ─────────────────────────────────────────
+      - name: Create report directories
+        run: |
+          TIMESTAMP="$(date -u '+%Y%m%d_%H%M%S')"
+          echo "TIMESTAMP=$TIMESTAMP" >> "$GITHUB_ENV"
+          mkdir -p reports/json
+          echo "Reports will be saved under: reports/"
+
+      # ── 5. Scan each project ─────────────────────────────────────────────────
+      - name: Scan projects
+        run: |
+          # ── helpers ──────────────────────────────────────────────────────────
+          SEVERITY="HIGH,CRITICAL"
+          TIMESTAMP="${TIMESTAMP}"
+          PASS=0; FAIL=0; SKIP=0
+
+          # Accumulator for consolidated report
+          CONSOLIDATED_TXT="reports/consolidated_${TIMESTAMP}.txt"
+
+          write_header() {
+            local proj="$1" scantype="$2" outfile="$3"
+            local now; now="$(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            cat >> "$outfile" <<EOF
+          ══════════════════════════════════════════════════════════════════════
+           Trivy Security Report
+           Project   : $proj
+           Scan Type : $scantype
+           Scan Date : $now
+           Severity  : HIGH, CRITICAL only
+          ══════════════════════════════════════════════════════════════════════
+
+          EOF
+          }
+
+          parse_vuln_json() {
+            # $1 = json file, $2 = output txt file
+            local json="$1" out="$2"
+            local total_high=0 total_crit=0
+
+            python3 - "$json" "$out" <<'PYEOF'
+          import json, sys, textwrap
+
+          json_path, out_path = sys.argv[1], sys.argv[2]
+          with open(json_path) as f:
+              data = json.load(f)
+
+          results = data.get("Results", [])
+          high = crit = 0
+          lines = []
+
+          for result in results:
+              vulns = result.get("Vulnerabilities") or []
+              if not vulns:
+                  continue
+              target = result.get("Target", "unknown")
+              lines.append(f"  Target : {target}")
+              lines.append("  " + "─" * 66)
+
+              for v in vulns:
+                  sev = v.get("Severity", "")
+                  if sev == "HIGH":
+                      high += 1
+                      badge = "[HIGH]    "
+                  elif sev == "CRITICAL":
+                      crit += 1
+                      badge = "[CRITICAL]"
+                  else:
+                      continue
+
+                  vid   = v.get("VulnerabilityID", "N/A")
+                  pkg   = v.get("PkgName", "N/A")
+                  inst  = v.get("InstalledVersion", "N/A")
+                  fixed = v.get("FixedVersion", "none available")
+                  desc  = v.get("Description", "No description available.")
+                  title = v.get("Title", "")
+                  refs  = v.get("References", [])
+                  primary_ref = refs[0] if refs else ""
+
+                  lines.append(f"  {badge} {vid}")
+                  lines.append(f"    Package          : {pkg}")
+                  lines.append(f"    Installed Version: {inst}")
+                  lines.append(f"    Fixed Version    : {fixed}")
+                  lines.append(f"    Title            : {title}")
+                  desc_wrapped = textwrap.fill(desc, width=70,
+                                               initial_indent="    ",
+                                               subsequent_indent="    ")
+                  lines.append(f"    Description      :\n{desc_wrapped}")
+                  if primary_ref:
+                      lines.append(f"    Reference        : {primary_ref}")
+                  lines.append("")
+
+              lines.append("")
+
+          # Summary
+          summary  = f"  Summary: {high} HIGH  |  {crit} CRITICAL\n"
+          summary += f"  Total findings: {high + crit}\n"
+
+          with open(out_path, "a") as f:
+              f.write("  ── Dependency Vulnerability Findings ──────────────────────────────\n\n")
+              f.write(summary + "\n")
+              if lines:
+                  f.write("\n".join(lines) + "\n")
+              else:
+                  f.write("  No HIGH or CRITICAL dependency vulnerabilities found.\n\n")
+
+          # Write counts to stdout for shell to capture
+          print(f"HIGH={high}")
+          print(f"CRIT={crit}")
+          PYEOF
+          }
+
+          parse_misconfig_json() {
+            # $1 = json file, $2 = output txt file
+            local json="$1" out="$2"
+
+            python3 - "$json" "$out" <<'PYEOF'
+          import json, sys, textwrap
+
+          json_path, out_path = sys.argv[1], sys.argv[2]
+          with open(json_path) as f:
+              data = json.load(f)
+
+          results = data.get("Results", [])
+          high = crit = 0
+          lines = []
+
+          for result in results:
+              misconfigs = result.get("Misconfigurations") or []
+              if not misconfigs:
+                  continue
+              target = result.get("Target", "unknown")
+              lines.append(f"  File : {target}")
+              lines.append("  " + "─" * 66)
+
+              for m in misconfigs:
+                  sev = m.get("Severity", "")
+                  if sev == "HIGH":
+                      high += 1
+                      badge = "[HIGH]    "
+                  elif sev == "CRITICAL":
+                      crit += 1
+                      badge = "[CRITICAL]"
+                  else:
+                      continue
+
+                  mid   = m.get("ID", "N/A")
+                  title = m.get("Title", "N/A")
+                  desc  = m.get("Description", "No description available.")
+                  msg   = m.get("Message", "")
+                  res   = m.get("Resolution", "No remediation available.")
+                  refs  = m.get("References", [])
+                  primary_ref = refs[0] if refs else ""
+
+                  lines.append(f"  {badge} {mid}")
+                  lines.append(f"    Title       : {title}")
+                  lines.append(f"    File        : {target}")
+                  lines.append(f"    Message     : {msg}")
+                  desc_wrapped = textwrap.fill(desc, width=70,
+                                               initial_indent="    ",
+                                               subsequent_indent="    ")
+                  lines.append(f"    Description :\n{desc_wrapped}")
+                  res_wrapped  = textwrap.fill(res, width=70,
+                                               initial_indent="    ",
+                                               subsequent_indent="    ")
+                  lines.append(f"    Remediation :\n{res_wrapped}")
+                  if primary_ref:
+                      lines.append(f"    Reference   : {primary_ref}")
+                  lines.append("")
+
+              lines.append("")
+
+          summary  = f"  Summary: {high} HIGH  |  {crit} CRITICAL\n"
+          summary += f"  Total findings: {high + crit}\n"
+
+          with open(out_path, "a") as f:
+              f.write("  ── Dockerfile Misconfiguration Findings ───────────────────────────\n\n")
+              f.write(summary + "\n")
+              if lines:
+                  f.write("\n".join(lines) + "\n")
+              else:
+                  f.write("  No HIGH or CRITICAL Dockerfile misconfigurations found.\n\n")
+
+          print(f"HIGH={high}")
+          print(f"CRIT={crit}")
+          PYEOF
+          }
+
+          # ── main loop ─────────────────────────────────────────────────────────
+          if [[ ! -s /tmp/projects.txt ]]; then
+            echo "No projects with a Dockerfile were found. Exiting."
+            exit 0
+          fi
+
+          # Consolidated header
+          cat > "$CONSOLIDATED_TXT" <<EOF
+          ══════════════════════════════════════════════════════════════════════
+           Trivy Consolidated Security Report
+           Generated : $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+           Severity  : HIGH, CRITICAL only
+          ══════════════════════════════════════════════════════════════════════
+
+          EOF
+
+          while IFS= read -r PROJECT; do
+            [[ -z "$PROJECT" ]] && continue
+
+            PROJECT_NAME="${PROJECT#"$SCAN_ROOT"/}"
+            [[ "$PROJECT_NAME" == "$PROJECT" ]] && PROJECT_NAME="$(basename "$PROJECT")"
+            SAFE_NAME="${PROJECT_NAME//\//_}"
+            REPORT_TXT="reports/${SAFE_NAME}_${TIMESTAMP}.txt"
+            VULN_JSON="reports/json/${SAFE_NAME}_vuln_${TIMESTAMP}.json"
+            MISC_JSON="reports/json/${SAFE_NAME}_misc_${TIMESTAMP}.json"
+
+            echo "══════════════════════════════════════════════════"
+            echo " Scanning: $PROJECT_NAME  ($PROJECT)"
+            echo "══════════════════════════════════════════════════"
+
+            # Start per-project report
+            write_header "$PROJECT_NAME" "Dependency Vulnerabilities + Dockerfile Misconfigs" \
+              "$REPORT_TXT"
+
+            SCAN_OK=true
+
+            # ── a) Dependency vulnerability scan ────────────────────────────
+            echo "  → Running dependency vulnerability scan …"
+            if trivy fs \
+                --scanners vuln \
+                --severity "$SEVERITY" \
+                --format json \
+                --output "$VULN_JSON" \
+                --exit-code 0 \
+                --quiet \
+                "$PROJECT" 2>/tmp/trivy_err.txt; then
+
+              COUNTS="$(parse_vuln_json "$VULN_JSON" "$REPORT_TXT")"
+              V_HIGH="$(echo "$COUNTS" | grep '^HIGH=' | cut -d= -f2)"
+              V_CRIT="$(echo "$COUNTS" | grep '^CRIT=' | cut -d= -f2)"
+              V_HIGH="${V_HIGH:-0}"; V_CRIT="${V_CRIT:-0}"
+              echo "     HIGH: $V_HIGH   CRITICAL: $V_CRIT"
+            else
+              echo "  ✘ Dependency scan failed for $PROJECT_NAME"
+              cat /tmp/trivy_err.txt | head -20
+              printf "  ── Dependency Vulnerability Findings ──────────────────────────────\n\n  SCAN FAILED – see CI logs for details.\n\n" \
+                >> "$REPORT_TXT"
+              SCAN_OK=false
+            fi
+
+            # ── b) Dockerfile misconfiguration scan ─────────────────────────
+            echo "  → Running Dockerfile misconfiguration scan …"
+            if trivy config \
+                --severity "$SEVERITY" \
+                --format json \
+                --output "$MISC_JSON" \
+                --exit-code 0 \
+                --quiet \
+                "$PROJECT" 2>/tmp/trivy_err.txt; then
+
+              COUNTS="$(parse_misconfig_json "$MISC_JSON" "$REPORT_TXT")"
+              M_HIGH="$(echo "$COUNTS" | grep '^HIGH=' | cut -d= -f2)"
+              M_CRIT="$(echo "$COUNTS" | grep '^CRIT=' | cut -d= -f2)"
+              M_HIGH="${M_HIGH:-0}"; M_CRIT="${M_CRIT:-0}"
+              echo "     HIGH: $M_HIGH   CRITICAL: $M_CRIT"
+            else
+              echo "  ✘ Misconfiguration scan failed for $PROJECT_NAME"
+              cat /tmp/trivy_err.txt | head -20
+              printf "  ── Dockerfile Misconfiguration Findings ───────────────────────────\n\n  SCAN FAILED – see CI logs for details.\n\n" \
+                >> "$REPORT_TXT"
+              SCAN_OK=false
+            fi
+
+            # ── footer ──────────────────────────────────────────────────────
+            printf "\n══════════════════════════════════════════════════════════════════════\n End of report for %s\n══════════════════════════════════════════════════════════════════════\n" \
+              "$PROJECT_NAME" >> "$REPORT_TXT"
+
+            # Append to consolidated report
+            cat "$REPORT_TXT" >> "$CONSOLIDATED_TXT"
+            printf "\n\n" >> "$CONSOLIDATED_TXT"
+
+            if $SCAN_OK; then
+              echo "  ✔ $PROJECT_NAME scan complete"
+              ((PASS++)) || true
+            else
+              echo "  ✘ $PROJECT_NAME had scan errors"
+              ((FAIL++)) || true
+            fi
+
+            echo ""
+
+          done < /tmp/projects.txt
+
+          # ── final summary ────────────────────────────────────────────────────
+          echo "══════════════════════════════════════════════════"
+          echo " SCAN SUMMARY"
+          echo "══════════════════════════════════════════════════"
+          echo "  ✔ Passed : $PASS"
+          echo "  ✘ Failed : $FAIL"
+          echo ""
+          echo "  Reports saved in: reports/"
+          echo "  Consolidated    : $CONSOLIDATED_TXT"
+          echo "══════════════════════════════════════════════════"
+
+          # Fail the workflow if any scan failed
+          if [[ $FAIL -gt 0 ]]; then
+            echo "::error::$FAIL project(s) had scan errors. Check the logs above."
+            exit 1
+          fi
+
+      # ── 6. Upload reports as artifacts ───────────────────────────────────────
+      - name: Upload text reports
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          name: trivy-reports-${{ env.TIMESTAMP }}
+          path: reports/
+          retention-days: 30
+
+      # ── 7. Upload raw JSON (optional, for debugging) ─────────────────────────
+      - name: Upload raw JSON scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-json-${{ env.TIMESTAMP }}
+          path: reports/json/
+          retention-days: 7
