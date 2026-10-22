@@ -16,6 +16,7 @@ permissions:
   contents: read
 
 env:
+  TRIVY_VERSION: "0.76.1"
   IMAGE_NAME: snyk-goof
   IMAGE_TAG: testing
   SCAN_PATH: ${{ github.event.inputs.scan_path || 'snyk-goof' }}
@@ -54,18 +55,23 @@ jobs:
       - name: Install Trivy
         run: |
           echo "::group::Installing Trivy"
-          sudo apt-get update -qq
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key \
-            | gpg --dearmor \
-            | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] \
-            https://aquasecurity.github.io/trivy-repo/deb \
-            $(lsb_release -sc) main" \
-            | sudo tee /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -qq
-          sudo apt-get install -y trivy
-          trivy --version
+          set -euo pipefail
+          ARCHIVE="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          RELEASE_URL="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          TEMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+
+          curl -fsSL "$RELEASE_URL/$ARCHIVE" -o "$TEMP_DIR/$ARCHIVE"
+          curl -fsSL "$RELEASE_URL/trivy_${TRIVY_VERSION}_checksums.txt" \
+            -o "$TEMP_DIR/checksums.txt"
+          grep -E "^[[:xdigit:]]{64}[[:space:]]+${ARCHIVE}$" \
+            "$TEMP_DIR/checksums.txt" > "$TEMP_DIR/expected.sha256"
+          (cd "$TEMP_DIR" && sha256sum --check expected.sha256)
+
+          tar -xzf "$TEMP_DIR/$ARCHIVE" -C "$TEMP_DIR" trivy
+          sudo install -m 0755 "$TEMP_DIR/trivy" /usr/local/bin/trivy
+          trivy --version | tee "$TEMP_DIR/version.txt"
+          grep -F "Version: ${TRIVY_VERSION}" "$TEMP_DIR/version.txt"
           echo "::endgroup::"
 
       # ── 3. Filesystem scan: vuln, misconfig, secret (HIGH/CRITICAL, non-blocking) ──
