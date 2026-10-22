@@ -1,7 +1,7 @@
-version: "2"
 services:
   goof:
     build: .
+    image: ${IMAGE_NAME:-snyk-goof}:${IMAGE_TAG:-testing}
     container_name: goof
     environment:
       - DOCKER=1
