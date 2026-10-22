@@ -10,10 +10,15 @@ on:
       scan_path:
         description: 'Path to scan (relative to repository root)'
         required: false
-        default: 'jenkins'
+        default: 'snyk-goof'
 
 permissions:
   contents: read
+
+env:
+  IMAGE_NAME: snyk-goof
+  IMAGE_TAG: testing
+  SCAN_PATH: ${{ github.event.inputs.scan_path || 'snyk-goof' }}
 
 jobs:
   discover-and-scan:
@@ -24,6 +29,24 @@ jobs:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate scan path
+        run: |
+          if [[ "$SCAN_PATH" = /* || ! -d "$SCAN_PATH" ]]; then
+            echo "::error::Scan path must be an existing directory relative to the repository root: $SCAN_PATH"
+            exit 1
+          fi
+
+          SCAN_ROOT="$(realpath -e -- "$SCAN_PATH")"
+          case "$SCAN_ROOT/" in
+            "$GITHUB_WORKSPACE/"*) ;;
+            *)
+              echo "::error::Scan path must resolve inside the repository: $SCAN_PATH"
+              exit 1
+              ;;
+          esac
+
+          echo "SCAN_PATH=$SCAN_ROOT" >> "$GITHUB_ENV"
 
       # ── 2. Install Trivy ─────────────────────────────────────────────────────
       - name: Install Trivy
@@ -43,23 +66,86 @@ jobs:
           trivy --version
           echo "::endgroup::"
 
-        # ── 4. Create report directories ─────────────────────────────────────────
-      - name: Create report directories
+      # ── 3. Filesystem scan: vuln, misconfig, secret (HIGH/CRITICAL, non-blocking) ──
+      - name: "Trivy FS scan (vuln, misconfig, secret)"
         run: |
-          TIMESTAMP="$(date -u '+%Y%m%d_%H%M%S')"
-          echo "TIMESTAMP=$TIMESTAMP" >> "$GITHUB_ENV"
-          mkdir -p reports/json
-          echo "Reports will be saved under: reports/"
+          echo "::group::Trivy FS Scan - $SCAN_PATH"
+          trivy fs \
+            --scanners vuln,misconfig,secret \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "$SCAN_PATH"
+          echo "::endgroup::"
 
+      # ── 4. IaC / config scan across the repository ─────────────────────────
+      - name: "Trivy config scan"
+        run: |
+          echo "::group::Trivy Config Scan"
+          trivy config \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            .
+          echo "::endgroup::"
 
+      # ── 5. Build the Docker image to scan ────────────────────────────────────
+      - name: Build Docker image
+        run: |
+          echo "::group::Building Docker image"
+          if [[ ! -f "$SCAN_PATH/Dockerfile" ]]; then
+            echo "::error::No Dockerfile found in scan path: $SCAN_PATH"
+            exit 1
+          fi
 
-# what is need in this ci 
-#1 trivy fs --scanners vuln,misconfig,secret   --severity HIGH,CRITICAL \ ./myapp --exit-code 0 not fial 
-#2   trivy config .
-#3 trivy image \--vex ./vex.json \sarvagram/service-utils-api:1.0.0
+          docker build \
+            -f "$SCAN_PATH/Dockerfile" \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            "$SCAN_PATH"
+          echo "::endgroup::"
 
+      # ── 6. Image scan with VEX document ─────────────────────────────────────
+      - name: "Trivy image scan with VEX"
+        run: |
+          echo "::group::Trivy Image Scan - VEX"
+          trivy image \
+            --vex ./vex.json \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "::endgroup::"
 
+      # ── 7. Basic image scan ─────────────────────────────────────────────────
+      - name: "Trivy image scan"
+        run: |
+          echo "::group::Trivy Image Scan"
+          trivy image \
+            --exit-code 0 \
+            --format table \
+            "${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "::endgroup::"
 
-#  trivy image sarvagram/service-utils-api:1.0.0 like this after the build
-# trivy image \--image-config-scanners misconfig,secret \   sarvagram/service-utils-api:1.0.0
-# trivy image \--scanners vuln,misconfig,secret \-image-config-scanners misconfig,secret \--severity HIGH,CRITICAL \sarvagram/service-utils-api:1.0.0
+      # ── 8. Image config scan: misconfig + secret only ───────────────────────
+      - name: "Trivy image config scan (misconfig, secret)"
+        run: |
+          echo "::group::Trivy Image Config Scan"
+          trivy image \
+            --image-config-scanners misconfig,secret \
+            --exit-code 0 \
+            --format table \
+            "${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "::endgroup::"
+
+      # ── 9. Full image scan: vuln + misconfig + secret, HIGH/CRITICAL only ───
+      - name: "Trivy image full scan (vuln, misconfig, secret - HIGH/CRITICAL)"
+        run: |
+          echo "::group::Trivy Image Full Scan"
+          trivy image \
+            --scanners vuln,misconfig,secret \
+            --image-config-scanners misconfig,secret \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "${IMAGE_NAME}:${IMAGE_TAG}"
+          echo "::endgroup::"

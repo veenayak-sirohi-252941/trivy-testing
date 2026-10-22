@@ -1,0 +1,9 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://example.com/vex/sarvagram-service-utils-api-1.0.0",
+  "author": "CI testing",
+  "role": "Document Creator",
+  "timestamp": "2026-10-22T00:00:00Z",
+  "version": 1,
+  "statements": []
+}

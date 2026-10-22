@@ -1,4 +1,4 @@
-name: Trivy Security Scan 2
+name: Trivy Security Scan 1
 
 on:
   push:
@@ -10,7 +10,7 @@ on:
       scan_path:
         description: 'Path to scan (relative to repository root)'
         required: false
-        default: 'jenkins'
+        default: 'snyk-goof'
 
 permissions:
   contents: read
@@ -49,7 +49,7 @@ jobs:
         env:
           SCAN_PATH: ${{ github.event.inputs.scan_path }}
         run: |
-          SCAN_ROOT="${SCAN_PATH:-jenkins}"
+          SCAN_ROOT="${SCAN_PATH:-snyk-goof}"
 
           if [[ "$SCAN_ROOT" = /* || ! -d "$SCAN_ROOT" ]]; then
             echo "::error::Scan path must be an existing directory relative to the repository root: $SCAN_ROOT"
@@ -65,6 +65,7 @@ jobs:
               ;;
           esac
 
+          echo "SCAN_ROOT=$SCAN_ROOT" >> "$GITHUB_ENV"
           echo "Scanning under: $SCAN_ROOT"
           echo "──────────────────────────────────────────"
 
