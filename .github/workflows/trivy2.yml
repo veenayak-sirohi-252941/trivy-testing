@@ -95,15 +95,13 @@ jobs:
       - name: Build Docker image
         run: |
           echo "::group::Building Docker image"
-          if [[ ! -f "$SCAN_PATH/Dockerfile" ]]; then
-            echo "::error::No Dockerfile found in scan path: $SCAN_PATH"
+          COMPOSE_FILE="$SCAN_PATH/docker-compose.yml"
+          if [[ ! -f "$COMPOSE_FILE" ]]; then
+            echo "::error::No docker-compose.yml found in scan path: $SCAN_PATH"
             exit 1
           fi
 
-          docker build \
-            -f "$SCAN_PATH/Dockerfile" \
-            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
-            "$SCAN_PATH"
+          docker compose -f "$COMPOSE_FILE" build goof
           echo "::endgroup::"
 
       # ── 6. Image scan with VEX document ─────────────────────────────────────
