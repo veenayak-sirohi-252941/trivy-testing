@@ -1,0 +1,3 @@
+[submodule "snyk-goof"]
+	path = snyk-goof
+	url = https://github.com/snyk-fixtures/snyk-goof.git
