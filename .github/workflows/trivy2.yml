@@ -8,18 +8,16 @@ on:
   workflow_dispatch:
     inputs:
       scan_path:
-        description: 'Path to scan (relative to repository root)'
+        description: 'Optional path to scan (relative to repository root; defaults to the whole repository)'
         required: false
-        default: 'snyk-goof'
+        default: '.'
 
 permissions:
   contents: read
 
 env:
   TRIVY_VERSION: "0.76.1"
-  IMAGE_NAME: snyk-goof
-  IMAGE_TAG: testing
-  SCAN_PATH: ${{ github.event.inputs.scan_path || 'snyk-goof' }}
+  SCAN_PATH: ${{ github.event.inputs.scan_path || '.' }}
 
 jobs:
   discover-and-scan:
@@ -86,7 +84,7 @@ jobs:
             "$SCAN_PATH"
           echo "::endgroup::"
 
-      # ── 4. IaC / config scan across the repository ─────────────────────────
+      # ── 4. IaC / config scan in the selected path ───────────────────────────
       - name: "Trivy config scan"
         run: |
           echo "::group::Trivy Config Scan"
@@ -94,64 +92,115 @@ jobs:
             --severity HIGH,CRITICAL \
             --exit-code 0 \
             --format table \
-            .
+            "$SCAN_PATH"
           echo "::endgroup::"
 
-      # ── 5. Build the Docker image to scan ────────────────────────────────────
-      - name: Build Docker image
+      # ── 5. Discover and build every Dockerfile in the selected path ─────────
+      - name: Discover and build Docker images
+        id: build-images
         run: |
-          echo "::group::Building Docker image"
-          COMPOSE_FILE="$SCAN_PATH/docker-compose.yml"
-          if [[ ! -f "$COMPOSE_FILE" ]]; then
-            echo "::error::No docker-compose.yml found in scan path: $SCAN_PATH"
-            exit 1
+          set -euo pipefail
+          mapfile -d '' DOCKERFILES < <(
+            find "$SCAN_PATH" \
+              \( -type d \( -name .git -o -name node_modules \) -prune \) -o \
+              \( -type f -name Dockerfile -print0 \) \
+              | sort -z
+          )
+
+          if [[ ${#DOCKERFILES[@]} -eq 0 ]]; then
+            echo "No Dockerfiles found under $SCAN_PATH; image scan tasks will be skipped."
+            echo "images<<EOF" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-          docker compose -f "$COMPOSE_FILE" build goof
-          echo "::endgroup::"
+          IMAGES=()
+          for DOCKERFILE in "${DOCKERFILES[@]}"; do
+            CONTEXT="$(dirname "$DOCKERFILE")"
+            RELATIVE_DOCKERFILE="${DOCKERFILE#"$SCAN_PATH"/}"
+            RELATIVE_CONTEXT="${CONTEXT#"$SCAN_PATH"/}"
+            if [[ "$CONTEXT" == "$SCAN_PATH" ]]; then
+              RELATIVE_CONTEXT="root"
+            fi
+
+            SAFE_NAME="$(printf '%s' "$RELATIVE_CONTEXT" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9_.-]+/-/g; s/^[.-]+//; s/[.-]+$//')"
+            SAFE_NAME="${SAFE_NAME:-image}"
+            SAFE_NAME="${SAFE_NAME:0:80}"
+            NAME_HASH="$(printf '%s' "$RELATIVE_DOCKERFILE" | sha256sum | cut -c1-8)"
+            IMAGE="trivy-scan:${SAFE_NAME}-${NAME_HASH}"
+
+            echo "::group::Building image from $DOCKERFILE"
+            docker build --file "$DOCKERFILE" --tag "$IMAGE" "$CONTEXT"
+            echo "::endgroup::"
+            IMAGES+=("$IMAGE")
+          done
+
+          {
+            echo "images<<EOF"
+            printf '%s\n' "${IMAGES[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       # ── 6. Image scan with VEX document ─────────────────────────────────────
       - name: "Trivy image scan with VEX"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
         run: |
-          echo "::group::Trivy Image Scan - VEX"
-          trivy image \
-            --vex ./vex.json \
-            --severity HIGH,CRITICAL \
-            --exit-code 0 \
-            --format table \
-            "${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "::endgroup::"
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            if [[ -f "$SCAN_PATH/vex.json" ]]; then
+              trivy image \
+                --vex "$SCAN_PATH/vex.json" \
+                --severity HIGH,CRITICAL \
+                --exit-code 0 \
+                --format table \
+                "$IMAGE"
+            else
+              echo "No vex.json found in $SCAN_PATH; skipping VEX scan for $IMAGE."
+            fi
+          done <<< "$IMAGES"
 
       # ── 7. Basic image scan ─────────────────────────────────────────────────
       - name: "Trivy image scan"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
         run: |
-          echo "::group::Trivy Image Scan"
-          trivy image \
-            --exit-code 0 \
-            --format table \
-            "${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "::endgroup::"
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"
 
-      # ── 8. Image config scan: misconfig + secret only ───────────────────────
+      # ── 8. Image config scan: misconfig + secret only ────────────────────────
       - name: "Trivy image config scan (misconfig, secret)"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
         run: |
-          echo "::group::Trivy Image Config Scan"
-          trivy image \
-            --image-config-scanners misconfig,secret \
-            --exit-code 0 \
-            --format table \
-            "${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "::endgroup::"
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --image-config-scanners misconfig,secret \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"
 
       # ── 9. Full image scan: vuln + misconfig + secret, HIGH/CRITICAL only ───
       - name: "Trivy image full scan (vuln, misconfig, secret - HIGH/CRITICAL)"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
         run: |
-          echo "::group::Trivy Image Full Scan"
-          trivy image \
-            --scanners vuln,misconfig,secret \
-            --image-config-scanners misconfig,secret \
-            --severity HIGH,CRITICAL \
-            --exit-code 0 \
-            --format table \
-            "${IMAGE_NAME}:${IMAGE_TAG}"
-          echo "::endgroup::"
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --scanners vuln,misconfig,secret \
+              --image-config-scanners misconfig,secret \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"
