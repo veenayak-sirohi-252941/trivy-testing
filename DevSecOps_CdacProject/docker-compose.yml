@@ -1,0 +1,55 @@
+services:
+  # 1. The Postgres Database
+  db:
+    build: ./Database
+    image: ${DOCKERHUB_NAMESPACE:-veenayak}/devsecops_cdacproject-db:latest
+    container_name: pokemanager_postgres
+    environment:
+      POSTGRES_USER: ${DB_USER:-pokemon_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pokemon_password}
+      POSTGRES_DB: ${DB_NAME:-pokemon_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # --- ADDED HEALTHCHECK HERE ---
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. The Flask Backend API
+  backend:
+    build: ./Backend
+    image: ${DOCKERHUB_NAMESPACE:-veenayak}/devsecops_cdacproject-backend:latest
+    container_name: pokemanager_backend
+    ports:
+      - "5000:5000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER:-pokemon_user}:${DB_PASSWORD:-pokemon_password}@db:5432/${DB_NAME:-pokemon_db}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-local-dev-secret-only}
+    volumes:
+      - ./Backend:/app # Hot-reloading works perfectly here
+    depends_on:
+      db:
+        condition: service_healthy # This now works because db has a healthcheck!
+
+  # 3. The React/Frontend App
+  frontend:
+    build: ./Frontend
+    image: ${DOCKERHUB_NAMESPACE:-veenayak}/devsecops_cdacproject-frontend:latest
+    container_name: pokemanager_frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # The browser calls `/api`; Vite forwards it over Docker's internal network.
+      VITE_API_PROXY_TARGET: http://backend:5000
+    volumes:
+      - ./Frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:

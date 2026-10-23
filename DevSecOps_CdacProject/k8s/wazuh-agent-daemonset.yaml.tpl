@@ -1,0 +1,394 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wazuh
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-agent-config
+  namespace: wazuh
+data:
+  ossec.conf: |
+    <ossec_config>
+      <client>
+        <server>
+          <address>WAZUH_PUBLIC_IP</address>
+          <port>1514</port>
+          <protocol>tcp</protocol>
+        </server>
+        <config-profile>amzn, amzn2023</config-profile>
+        <notify_time>20</notify_time>
+        <time-reconnect>60</time-reconnect>
+        <auto_restart>yes</auto_restart>
+        <crypto_method>aes</crypto_method>
+        <enrollment>
+          <enabled>yes</enabled>
+          <manager_address>WAZUH_PUBLIC_IP</manager_address>
+          <port>1515</port>
+          <groups>kubernetes</groups>
+        </enrollment>
+      </client>
+
+      <!-- =============================================================
+           FILE INTEGRITY MONITORING (FIM) - EXPANDED
+           Monitors host filesystem for unauthorized changes across critical
+           system paths, container runtimes, and Kubernetes configurations.
+           ============================================================= -->
+      <syscheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <scan_on_start>yes</scan_on_start>
+        <auto_ignore>no</auto_ignore>
+        <alert_new_files>yes</alert_new_files>
+        <follow_symbolic_links>no</follow_symbolic_links>
+
+        <!-- === CRITICAL SYSTEM BINARIES & LIBRARIES === -->
+        <directories check_all="yes" report_changes="yes">/host/bin</directories>
+        <directories check_all="yes" report_changes="yes">/host/sbin</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/bin</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/sbin</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/local/bin</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/local/sbin</directories>
+        <directories check_all="yes">/host/lib</directories>
+        <directories check_all="yes">/host/lib64</directories>
+        <directories check_all="yes">/host/usr/lib</directories>
+        <directories check_all="yes">/host/usr/lib64</directories>
+
+        <!-- === SYSTEM CONFIGURATION & SECURITY === -->
+        <directories check_all="yes" report_changes="yes">/host/etc</directories>
+        <directories check_all="yes" report_changes="yes">/host/root/.ssh</directories>
+        <directories check_all="yes" report_changes="yes">/host/root/.bashrc</directories>
+        <directories check_all="yes" report_changes="yes">/host/root/.bash_profile</directories>
+
+        <!-- === SCHEDULED JOBS & CRON === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/cron.d</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/cron.daily</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/cron.hourly</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/cron.weekly</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/cron.monthly</directories>
+
+        <!-- === CONTAINER RUNTIME & DOCKER === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/docker</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/bin/docker</directories>
+        <directories check_all="yes" report_changes="yes">/host/usr/bin/containerd</directories>
+
+        <!-- === KUBERNETES NODE CONFIGURATION === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/kubernetes</directories>
+        <directories check_all="yes" report_changes="yes">/host/var/lib/kubelet</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/systemd/system/kubelet.service.d</directories>
+
+        <!-- === KERNEL & BOOT === -->
+        <directories check_all="yes" report_changes="yes">/host/boot</directories>
+        <directories check_all="yes" report_changes="yes">/host/lib/modules</directories>
+
+        <!-- === SSH SERVER CONFIGURATION === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/ssh</directories>
+
+        <!-- === PAM & AUTHENTICATION === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/pam.d</directories>
+
+        <!-- === SYSTEM SERVICES & DAEMONS === -->
+        <directories check_all="yes" report_changes="yes">/host/etc/systemd/system</directories>
+        <directories check_all="yes" report_changes="yes">/host/etc/init.d</directories>
+
+        <!-- === AWS/EC2 METADATA === -->
+        <directories check_all="yes">/host/var/lib/cloud</directories>
+
+        <!-- === NOISY PATHS TO IGNORE === -->
+        <ignore>/host/etc/mtab</ignore>
+        <ignore>/host/etc/hosts.deny</ignore>
+        <ignore>/host/etc/random-seed</ignore>
+        <ignore>/host/etc/machine-id</ignore>
+        <ignore type="sregex">^/host/etc/kubernetes/.*\.lock$</ignore>
+        <ignore type="sregex">^/host/var/lib/docker/.*</ignore>
+        <ignore type="sregex">^/host/var/lib/kubelet/pods/.*</ignore>
+        <ignore>/host/etc/ld.so.cache</ignore>
+        <ignore>/host/var/cache</ignore>
+        <ignore>/host/var/tmp</ignore>
+      </syscheck>
+
+      <!-- =============================================================
+           ROOTKIT & ANOMALY DETECTION
+           ============================================================= -->
+      <rootcheck>
+        <disabled>no</disabled>
+        <frequency>43200</frequency>
+        <rootkit_files>/var/ossec/etc/shared/rootkit_files.txt</rootkit_files>
+        <rootkit_trojans>/var/ossec/etc/shared/rootkit_trojans.txt</rootkit_trojans>
+      </rootcheck>
+
+      <!-- =============================================================
+           LOG COLLECTION
+           ============================================================= -->
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/syslog</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/auth.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/kern.log</location>
+      </localfile>
+      <localfile>
+        <log_format>json</log_format>
+        <location>/var/log/containers/*.log</location>
+      </localfile>
+      <localfile>
+        <log_format>syslog</log_format>
+        <location>/var/log/audit/audit.log</location>
+      </localfile>
+
+      <!-- =============================================================
+           ACTIVE RESPONSE RULES & COMMANDS
+           Automatically remediate detected threats with predefined actions
+           ============================================================= -->
+      
+      <!-- Firewall block for brute-force attempts (SSH rules 5710-5712) -->
+      <active-response>
+        <command>firewall-drop</command>
+        <location>local</location>
+        <rules_id>5710,5711,5712</rules_id>
+        <timeout>3600</timeout>
+        <repeated_offenders>30,60,120</repeated_offenders>
+      </active-response>
+
+      <!-- Immediate alert on rootkit/malware signatures (ClamAV/Rootcheck) -->
+      <active-response>
+        <command>host-deny</command>
+        <location>local</location>
+        <rules_id>510,511,512,513</rules_id>
+        <timeout>0</timeout>
+      </active-response>
+
+      <!-- Block privilege escalation attempts (sudo abuse) -->
+      <active-response>
+        <command>firewall-drop</command>
+        <location>local</location>
+        <rules_id>5402,5403</rules_id>
+        <timeout>7200</timeout>
+      </active-response>
+
+      <!-- Alert on critical FIM violations (/etc, binaries, configs) -->
+      <active-response>
+        <command>restart-wazuh</command>
+        <location>local</location>
+        <rules_id>650,651,652,653,654</rules_id>
+        <timeout>0</timeout>
+      </active-response>
+
+      <!-- Block unauthorized package manager tampering -->
+      <active-response>
+        <command>firewall-drop</command>
+        <location>local</location>
+        <rules_id>4002,4003</rules_id>
+        <timeout>3600</timeout>
+      </active-response>
+
+      <!-- Alert on failed SSH authentication (rule 5551) -->
+      <active-response>
+        <command>log-alert</command>
+        <location>local</location>
+        <rules_id>5551</rules_id>
+        <timeout>0</timeout>
+      </active-response>
+
+      <!-- =============================================================
+           VULNERABILITY DETECTION & CIS COMPLIANCE
+           ============================================================= -->
+      <wodle name="cis-cat">
+        <disabled>yes</disabled>
+      </wodle>
+      <wodle name="vulnerability-detection">
+        <enabled>yes</enabled>
+        <feed-update-interval>60m</feed-update-interval>
+      </wodle>
+    </ossec_config>
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wazuh-response-scripts
+  namespace: wazuh
+data:
+  firewall-drop: |
+    #!/bin/bash
+    # Block an IP address via iptables
+    # Usage: firewall-drop <srcip> <action>
+    
+    SRCIP="$1"
+    ACTION="$2"
+    LOG_FILE="/var/log/wazuh-active-response.log"
+    
+    if [ -z "$SRCIP" ]; then
+      echo "[$(date)] firewall-drop: Missing source IP" >> "$LOG_FILE"
+      exit 1
+    fi
+    
+    if [ "$ACTION" = "add" ]; then
+      echo "[$(date)] firewall-drop: Blocking $SRCIP" >> "$LOG_FILE"
+      iptables -I INPUT -s "$SRCIP" -j DROP 2>/dev/null
+      iptables -I FORWARD -s "$SRCIP" -j DROP 2>/dev/null
+    elif [ "$ACTION" = "delete" ]; then
+      echo "[$(date)] firewall-drop: Unblocking $SRCIP" >> "$LOG_FILE"
+      iptables -D INPUT -s "$SRCIP" -j DROP 2>/dev/null
+      iptables -D FORWARD -s "$SRCIP" -j DROP 2>/dev/null
+    fi
+    exit 0
+
+  host-deny: |
+    #!/bin/bash
+    # Critical security response - log and alert
+    
+    SRCIP="$1"
+    ACTION="$2"
+    LOG_FILE="/var/log/wazuh-active-response.log"
+    SYSLOG_TAG="wazuh-ar-critical"
+    
+    if [ "$ACTION" = "add" ]; then
+      echo "[$(date)] CRITICAL ALERT: Rootkit/Malware detected from $SRCIP" >> "$LOG_FILE"
+      logger -t "$SYSLOG_TAG" -p security.crit "CRITICAL: Rootkit or malware signature detected. Immediate investigation required."
+      # Optionally block the IP as well
+      iptables -I INPUT -s "$SRCIP" -j DROP 2>/dev/null
+    fi
+    exit 0
+
+  log-alert: |
+    #!/bin/bash
+    # Generic logging alert
+    
+    SRCIP="$1"
+    ACTION="$2"
+    LOG_FILE="/var/log/wazuh-active-response.log"
+    
+    if [ "$ACTION" = "add" ]; then
+      echo "[$(date)] ALERT: Event from $SRCIP" >> "$LOG_FILE"
+      logger -t "wazuh-ar" -p security.warning "Wazuh active response triggered for $SRCIP"
+    fi
+    exit 0
+
+  restart-wazuh: |
+    #!/bin/bash
+    # Restart Wazuh agent on critical FIM violation
+    
+    LOG_FILE="/var/log/wazuh-active-response.log"
+    EVENT="$1"
+    ACTION="$2"
+    
+    if [ "$ACTION" = "add" ]; then
+      echo "[$(date)] CRITICAL FIM VIOLATION: $EVENT - Restarting agent" >> "$LOG_FILE"
+      logger -t "wazuh-ar" -p security.crit "File Integrity Violation: $EVENT"
+      /var/ossec/bin/wazuh-control restart 2>/dev/null
+    fi
+    exit 0
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: wazuh-agent
+  namespace: wazuh
+  labels:
+    app: wazuh-agent
+spec:
+  selector:
+    matchLabels:
+      app: wazuh-agent
+  template:
+    metadata:
+      labels:
+        app: wazuh-agent
+    spec:
+      hostPID: true
+      hostNetwork: false
+      terminationGracePeriodSeconds: 30
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: wazuh-agent
+          image: wazuh/wazuh-agent:4.14.7
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add:
+                - SYS_ADMIN
+                - SYS_PTRACE
+                - DAC_READ_SEARCH
+          env:
+            - name: WAZUH_MANAGER_SERVER
+              value: "WAZUH_PUBLIC_IP"
+            - name: WAZUH_MANAGER_PORT
+              value: "1514"
+            - name: WAZUH_PROTOCOL
+              value: "tcp"
+            - name: WAZUH_REGISTRATION_SERVER
+              value: "WAZUH_PUBLIC_IP"
+            - name: WAZUH_REGISTRATION_PORT
+              value: "1515"
+            - name: WAZUH_AGENT_GROUP
+              value: "kubernetes"
+            - name: WAZUH_AGENT_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/var/ossec/bin/wazuh-control", "stop"]
+          livenessProbe:
+            exec:
+              command: ["/var/ossec/bin/wazuh-control", "status"]
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["/var/ossec/bin/wazuh-control", "status"]
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 2
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+              readOnly: true
+            - name: host-var-log
+              mountPath: /var/log
+              readOnly: false
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+            - name: wazuh-config
+              mountPath: /wazuh-config-mount/etc/ossec.conf
+              subPath: ossec.conf
+              readOnly: true
+            - name: response-scripts
+              mountPath: /var/ossec/active-response/bin
+              readOnly: true
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+        - name: host-var-log
+          hostPath:
+            path: /var/log
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+        - name: wazuh-config
+          configMap:
+            name: wazuh-agent-config
+        - name: response-scripts
+          configMap:
+            name: wazuh-response-scripts
+            defaultMode: 0755

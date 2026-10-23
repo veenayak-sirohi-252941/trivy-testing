@@ -1,0 +1,8 @@
+# Flask Config
+JWT_SECRET_KEY=local-dev-secret-only
+DATABASE_URL=postgresql://poke_user:super_secure_local_pass@localhost:5432/pokemanager_db
+
+# Docker Compose Config
+DB_USER=poke_user
+DB_PASSWORD=super_secure_local_pass
+DB_NAME=pokemanager_db
