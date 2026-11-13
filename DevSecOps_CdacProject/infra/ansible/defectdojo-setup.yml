@@ -1,0 +1,157 @@
+- name: Install Docker and deploy DefectDojo
+  hosts: defectdojo
+  become: true
+
+  vars:
+    docker_user: "{{ ansible_user | default(lookup('env', 'USER')) }}"
+    defectdojo_repo: https://github.com/DefectDojo/django-DefectDojo.git
+    defectdojo_dest: /opt/django-DefectDojo
+
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+
+  tasks:
+    - name: Refresh apt metadata
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      retries: 5
+      delay: 10
+      register: apt_refresh
+      until: apt_refresh is succeeded
+
+    - name: Install required system packages
+      apt:
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - software-properties-common
+          - python3-pip
+          - python3-venv
+          - python3-setuptools
+          - git
+        state: present
+        install_recommends: false
+        force_apt_get: true
+        dpkg_options: force-confdef,force-confold
+      retries: 3
+      delay: 5
+      register: apt_install
+      until: apt_install is succeeded
+
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+        force: true
+
+    - name: De-armor Docker GPG key for APT
+      command: gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Install Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        update_cache: true
+        install_recommends: false
+        force_apt_get: true
+        dpkg_options: force-confdef,force-confold
+
+    - name: Install Docker module for Python
+      apt:
+        name: python3-docker
+        state: present
+        install_recommends: false
+        force_apt_get: true
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add user to docker group
+      user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: true
+
+    - name: Set vm.max_map_count for container workloads
+      sysctl:
+        name: vm.max_map_count
+        value: "262144"
+        state: present
+        reload: true
+
+    - name: Clone DefectDojo repository
+      git:
+        repo: "{{ defectdojo_repo }}"
+        dest: "{{ defectdojo_dest }}"
+        version: master
+        update: true
+
+    - name: Start DefectDojo via Docker Compose
+      command:
+        cmd: docker compose up -d
+        chdir: "{{ defectdojo_dest }}"
+
+    - name: Ensure initializer log file exists
+      file:
+        path: /tmp/dojo-initializer.log
+        state: touch
+        mode: "0644"
+
+    - name: Wait for initializer container to exit
+      shell:
+        cmd: >
+          docker compose logs initializer > /tmp/dojo-initializer.log 2>&1;
+          docker inspect -f "{{ '{{' }}.State.Status{{ '}}' }}" django-defectdojo-initializer-1
+        chdir: "{{ defectdojo_dest }}"
+      register: initializer_status
+      retries: 90
+      delay: 10
+      until: initializer_status.stdout is search('exited')
+      failed_when: false
+      changed_when: false
+
+    - name: Grab admin password if this was a fresh init
+      shell: "grep -i 'Admin password:' /tmp/dojo-initializer.log || true"
+      register: dojo_admin_password
+      changed_when: false
+
+    - name: Show DefectDojo admin password
+      debug:
+        msg: >-
+          {{ dojo_admin_password.stdout if dojo_admin_password.stdout
+             else 'No new password was printed - admin user already existed in the database (reused volume). Use the previously set password, or run: docker compose exec uwsgi python manage.py changepassword admin' }}
+
+    - name: Fetch initializer log to control node
+      fetch:
+        src: /tmp/dojo-initializer.log
+        dest: "./dojo-initializer-{{ inventory_hostname }}.log"
+        flat: true
+
+    - name: Show last 50 lines of initializer log
+      command: tail -n 50 /tmp/dojo-initializer.log
+      changed_when: false

@@ -1,0 +1,150 @@
+# ==========================================
+# Environment files - secrets and credentials
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# Backend / Flask (Python)
+# ==========================================
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.pytest_cache/
+**/.venv/
+**/venv/
+**/env/
+**/ENV/
+**/instance/
+**/*.egg-info/
+**/*.egg
+.mypy_cache/
+.python-version
+
+# ==========================================
+# Frontend / React (Vite / Node.js)
+# ==========================================
+**/node_modules/
+**/dist/
+**/build/
+.eslintcache
+*.tsbuildinfo
+
+# Local env files containing frontend keys
+**/.env.local
+**/.env.development.local
+**/.env.test.local
+**/.env.production.local
+
+# npm / yarn logs (NOT lockfiles — keep package-lock.json / yarn.lock committed)
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# ==========================================
+# Database
+# ==========================================
+pgdata/
+postgres_data/
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+
+# ==========================================
+# Terraform / IaC
+# ==========================================
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfstate.*.backup
+**/.terraform.tfstate.lock.info
+**/*.tfplan
+**/tfplan
+**/destroy.tfplan
+**/crash.log
+**/crash.*.log
+*.tfvars
+*.tfvars.json
+override.tf
+override.tf.json
+**/*_override.tf
+**/*_override.tf.json
+.terraformrc
+terraform.rc
+
+# ==========================================
+# Ansible
+# ==========================================
+*.retry
+ansible.log
+infra/ansible/inventory.ini
+!infra/ansible/inventory.ini.example
+
+# ==========================================
+# Kubernetes
+# ==========================================
+kubeconfig*
+.kube/
+
+# ==========================================
+# Secrets / Keys / Certs
+# ==========================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+.aws/
+.azure/
+.google/
+
+# ==========================================
+# CI/CD-generated scan reports (regenerated each run, not source)
+# ==========================================
+trivy-reports/
+sonar-issues.json
+zap-report.json
+trivy-iac-report.json
+
+# ==========================================
+# Docs (screenshots / binary docs — keep .md tracked)
+# ==========================================
+Document/*.pdf
+Document/*.docx
+Document/*.png
+
+# ==========================================
+# Prompts & Notes
+# ==========================================
+promt.txt
+
+# ==========================================
+# Editor / IDE
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# OS-specific files
+# ==========================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==========================================
+# Logs & Temp Files
+# ==========================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp

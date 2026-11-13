@@ -1,0 +1,180 @@
+# values.yaml for kube-prometheus-stack (Prometheus + Alertmanager + Grafana)
+# Chart: prometheus-community/kube-prometheus-stack
+# Tuned for AWS EKS. Adjust storageClassName / sizes to match your cluster.
+
+fullnameOverride: monitoring
+
+## ---------------------------------------------------------------------
+## Prometheus
+## ---------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    # Storage configuration for persistent Prometheus data
+    # Uncomment the storageSpec block below to enable persistent storage with gp2 EBS volumes
+    # (requires the EBS CSI driver + a gp2 StorageClass on the cluster)
+    # storageSpec:
+    #   volumeClaimTemplate:
+    #     spec:
+    #       storageClassName: gp2
+    #       accessModes: ["ReadWriteOnce"]
+    #       resources:
+    #         requests:
+    #           storage: 50Gi
+
+    # Data is stored in emptyDir (ephemeral) when storageSpec is disabled.
+    # This is suitable for dev/test environments but data will be lost on pod restart.
+
+    # Let Prometheus discover ServiceMonitors/PodMonitors from any namespace
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+## ---------------------------------------------------------------------
+## Alertmanager
+## ---------------------------------------------------------------------
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    # Storage configuration for Alertmanager state
+    # Uncomment the storage block below to enable persistent storage with gp2 EBS volumes
+    # (requires the EBS CSI driver + a gp2 StorageClass on the cluster)
+    # storage:
+    #   volumeClaimTemplate:
+    #     spec:
+    #       storageClassName: gp2
+    #       accessModes: ["ReadWriteOnce"]
+    #       resources:
+    #         requests:
+    #           storage: 5Gi
+
+    # State is stored in emptyDir (ephemeral) when storage is disabled.
+    # This is suitable for dev/test environments but alert state will be lost on pod restart.
+
+## ---------------------------------------------------------------------
+## Grafana
+## ---------------------------------------------------------------------
+grafana:
+  enabled: true
+  adminUser: admin
+  # Prefer pulling this from a pre-created Secret instead of plaintext here.
+  # kubectl create secret generic grafana-admin-secret \
+  #   --namespace monitoring \
+  #   --from-literal=admin-user=admin \
+  #   --from-literal=admin-password='CHANGE_ME'
+  admin:
+    existingSecret: grafana-admin-secret
+    userKey: admin-user
+    passwordKey: admin-password
+
+  # Persistence configuration for Grafana dashboards and plugins
+  # Set enabled: false to use emptyDir (ephemeral) storage
+  # Uncomment and adjust the storageClassName below to enable persistent storage with gp2 EBS volumes
+  # (requires the EBS CSI driver + a gp2 StorageClass on the cluster)
+  persistence:
+    enabled: false
+    # storageClassName: gp2
+    # accessModes: ["ReadWriteOnce"]
+    # size: 10Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Expose via a Kubernetes Service. Use LoadBalancer for a quick NLB,
+  # or switch to ClusterIP + an Ingress (ALB) if you already run one.
+  service:
+    type: LoadBalancer
+    annotations:
+      service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+      service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+
+  # If you'd rather use an ALB Ingress instead of a LoadBalancer Service,
+  # set service.type to ClusterIP above and uncomment this block
+  # (requires the AWS Load Balancer Controller installed on the cluster):
+  # ingress:
+  #   enabled: true
+  #   ingressClassName: alb
+  #   annotations:
+  #     alb.ingress.kubernetes.io/scheme: internet-facing
+  #     alb.ingress.kubernetes.io/target-type: ip
+  #   hosts:
+  #     - grafana.example.com
+
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL # auto-load dashboards from ConfigMaps labeled grafana_dashboard: "1"
+      label: grafana_dashboard
+      labelValue: "1"
+    datasources:
+      enabled: true
+
+  # NOTE: We intentionally do NOT use grafana.dashboards.default with a
+  # gnetId/revision here. That method makes the grafana-sc-dashboard init
+  # container fetch the dashboard JSON from grafana.com at every pod start,
+  # which (a) needs outbound internet from the cluster and (b) pinned us to
+  # revision 37 instead of the revision 45 JSON we actually validated.
+  #
+  # Instead, the Node Exporter Full dashboard (gnetId 1860, rev 45) is loaded
+  # from a local ConfigMap picked up by the sidecar above. Create it once,
+  # before/after `helm upgrade --install`, in the same namespace as Grafana:
+  #
+  #   kubectl create configmap grafana-dashboard-node-exporter-full \
+  #     --namespace monitoring \
+  #     --from-file=node-exporter-full.json=1860_rev45.json \
+  #     --dry-run=client -o yaml | \
+  #   kubectl label -f - --local -o yaml \
+  #     grafana_dashboard=1 | \
+  #   kubectl apply -f -
+  #
+  # Re-run the same command (kubectl apply is idempotent) any time you swap
+  # in a newer revision of the dashboard JSON.
+
+## ---------------------------------------------------------------------
+## Node exporter / kube-state-metrics (installed by default, resources capped here)
+## ---------------------------------------------------------------------
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+## ---------------------------------------------------------------------
+## Default component scraping (API server, kubelet, etcd if reachable, etc.)
+## ---------------------------------------------------------------------
+kubeEtcd:
+  enabled: false # EKS control plane etcd isn't reachable/managed by AWS — leave disabled
+kubeControllerManager:
+  enabled: false # not reachable on managed EKS control plane
+kubeScheduler:
+  enabled: false # not reachable on managed EKS control plane

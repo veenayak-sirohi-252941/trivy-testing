@@ -1,0 +1,573 @@
+name: build.yml
+
+run-name: Push by @${{ github.actor }}
+
+# Serialize runs against the same branch so concurrent pushes/PRs can't race
+# each other when creating/reimporting into the same DefectDojo Engagement.
+concurrency:
+  group: devsecops-pipeline-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOCKERHUB_NAMESPACE: ${{ secrets.DOCKERHUB_USERNAME }}
+  COMPOSE_PROJECT_NAME: devsecops_cdacproject
+  DB_IMAGE: devsecops_cdacproject-db
+  BACKEND_IMAGE: devsecops_cdacproject-backend
+  FRONTEND_IMAGE: devsecops_cdacproject-frontend
+  MONITORING_NAMESPACE: monitoring
+  KUBE_PROMETHEUS_STACK_VERSION: "62.7.0"
+
+on:
+  push:
+    branches:
+      - sirohi
+      - master
+      - Dev
+    paths-ignore:
+      - README.md
+  pull_request:
+    branches:
+      - sirohi
+      - master
+      - Dev
+    paths-ignore:
+      - README.md
+      - "**/README.md"
+
+jobs:
+  Setup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checking Current Directory
+        run: pwd
+
+      - name: Verifying Docker
+        run: |
+          docker --version
+          docker compose version
+          docker info
+
+      - name: Validate Docker Compose file
+        run: docker compose config
+
+  Secrets_Scanning:
+    runs-on: ubuntu-latest
+    needs: Setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Secrets Scanning (trufflehog)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          head: ${{ github.sha }}
+          extra_args: --log-level=2 --results=verified --json
+
+  SAST_SonarQube:
+    runs-on: ubuntu-latest
+    needs: Secrets_Scanning
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v8.2.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: ./
+          args: >
+            -Dsonar.projectKey=AnzenOps
+            -Dsonar.sources=.
+
+      - name: Fetch SonarQube Issues Report
+        run: |
+          curl -s -u "${{ secrets.SONAR_TOKEN }}:" \
+            "${{ secrets.SONAR_HOST_URL }}/api/issues/search?componentKeys=AnzenOps&resolved=false&ps=500" \
+            -o sonar-issues.json
+
+      - name: Upload SonarQube Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: sonarqube-report
+          path: sonar-issues.json
+
+      # NOTE: pinned by "engagement" ID (not engagement_name/auto_create_context)
+      # so reimport always lands in the exact same Engagement/Test, avoiding
+      # duplicate-engagement races and findings piling up on rerun.
+      - name: Upload SonarQube Findings to DefectDojo
+        run: |
+          curl -X POST \
+          "${{ secrets.DEFECTDOJO_URL }}/api/v2/reimport-scan/" \
+          -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+          -F "scan_type=SonarQube Scan detailed" \
+          -F "file=@sonar-issues.json" \
+          -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+          -F "test_title=SonarQube SAST Scan" \
+          -F "deduplication_on_engagement=true" \
+          -F "close_old_findings=true" \
+          -F "do_not_reactivate=false" \
+          -F "active=true" \
+          -F "verified=false"
+
+  SCA_and_SBOM_Trivy:
+    runs-on: ubuntu-latest
+    needs: Secrets_Scanning
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Trivy File Scan
+        run: |
+          mkdir -p trivy-reports
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$PWD":/workspace \
+            -v "$PWD/trivy-reports":/reports \
+            aquasec/trivy fs --scanners vuln,secret,misconfig \
+            --format cyclonedx -o /reports/fs-sbom.cdx.json /workspace
+
+      - name: Upload SBOM Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-sbom
+          path: trivy-reports/
+
+      - name: Upload SBOM to DefectDojo
+        run: |
+          curl -X POST \
+          "${{ secrets.DEFECTDOJO_URL }}/api/v2/reimport-scan/" \
+          -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+          -F "scan_type=CycloneDX Scan" \
+          -F "file=@trivy-reports/fs-sbom.cdx.json" \
+          -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+          -F "test_title=Trivy SBOM Scan" \
+          -F "deduplication_on_engagement=true" \
+          -F "close_old_findings=true" \
+          -F "do_not_reactivate=false" \
+          -F "active=true" \
+          -F "verified=false"
+
+  Build_and_Push_Container_Image:
+    runs-on: ubuntu-latest
+    needs: [SAST_SonarQube, SCA_and_SBOM_Trivy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build with Docker Compose
+        run: |
+          docker compose build db backend frontend
+          docker compose up -d db backend frontend
+
+      - name: Wait for app
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:5173/ >/dev/null 2>&1; then
+              echo "Service is ready!"
+              exit 0
+            fi
+            echo "waiting for app..."
+            sleep 5
+          done
+          echo "Service failed to start within timeout"
+          docker compose logs
+          exit 1
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Push Docker images
+        run: |
+          docker push ${DOCKERHUB_NAMESPACE}/${DB_IMAGE}:latest
+          docker push ${DOCKERHUB_NAMESPACE}/${BACKEND_IMAGE}:latest
+          docker push ${DOCKERHUB_NAMESPACE}/${FRONTEND_IMAGE}:latest
+
+      - name: Stop Docker Compose services
+        if: always()
+        run: docker compose down -v
+
+  Container_Image_Scan:
+    runs-on: ubuntu-latest
+    needs: Build_and_Push_Container_Image
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Log in to Docker Hub
+        run: echo ${{ secrets.DOCKERHUB_TOKEN }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Trivy Container Image Scan
+        run: |
+          mkdir -p trivy-reports
+          for img in \
+            ${DOCKERHUB_NAMESPACE}/${DB_IMAGE}:latest \
+            ${DOCKERHUB_NAMESPACE}/${BACKEND_IMAGE}:latest \
+            ${DOCKERHUB_NAMESPACE}/${FRONTEND_IMAGE}:latest
+          do
+            NAME=$(echo "$img" | tr '/:' '__')
+            echo "Scanning $img"
+            docker run --rm \
+              -v /var/run/docker.sock:/var/run/docker.sock \
+              -v "$PWD/trivy-reports":/reports \
+              aquasec/trivy image --scanners vuln --format cyclonedx \
+              -o "/reports/${NAME}.cdx.json" "$img"
+          done
+
+      - name: Upload Trivy Image Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-reports
+          path: trivy-reports/
+
+      # NOTE: test_title is derived from the image name only (no digest/hash),
+      # so it stays identical across reruns and keeps mapping to the same Test.
+      - name: Upload Trivy Image Scans to DefectDojo
+        run: |
+          for report in trivy-reports/*.cdx.json; do
+            echo "Uploading $report to DefectDojo"
+            curl -X POST \
+            "${{ secrets.DEFECTDOJO_URL }}/api/v2/reimport-scan/" \
+            -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+            -F "scan_type=CycloneDX Scan" \
+            -F "file=@${report}" \
+            -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+            -F "test_title=Trivy Image Scan - $(basename "$report")" \
+            -F "deduplication_on_engagement=true" \
+            -F "close_old_findings=true" \
+            -F "do_not_reactivate=false" \
+            -F "active=true" \
+            -F "verified=false"
+          done
+
+  IaC_Scan:
+    runs-on: ubuntu-latest
+    needs: Setup
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Trivy IaC Scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: "config"
+          scan-ref: "."
+          format: "json"
+          output: "trivy-iac-report.json"
+          severity: "CRITICAL,HIGH"
+          exit-code: "0"
+
+      - name: Upload Trivy IaC Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-iac-report
+          path: trivy-iac-report.json
+
+      - name: Upload IaC Scan to DefectDojo
+        run: |
+          curl -X POST \
+          "${{ secrets.DEFECTDOJO_URL }}/api/v2/reimport-scan/" \
+          -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+          -F "scan_type=Trivy Scan" \
+          -F "file=@trivy-iac-report.json" \
+          -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+          -F "test_title=Trivy IaC Scan" \
+          -F "deduplication_on_engagement=true" \
+          -F "close_old_findings=true" \
+          -F "do_not_reactivate=false" \
+          -F "active=true" \
+          -F "verified=false"
+
+  Deploy_to_Staging:
+    runs-on: ubuntu-latest
+    needs: [Build_and_Push_Container_Image, Container_Image_Scan]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS CLI & kubectl
+        run: |
+          set -euo pipefail
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          unzip -o awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
+
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          kubectl version --client
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Update kubeconfig
+        run: |
+          set -euo pipefail
+          CLUSTER_NAME=$(aws eks list-clusters --region "${{ secrets.AWS_REGION }}" --query "clusters[0]" --output text)
+
+          if [ -z "$CLUSTER_NAME" ] || [ "$CLUSTER_NAME" == "None" ]; then
+            echo "No EKS cluster found in region ${{ secrets.AWS_REGION }}"
+            exit 1
+          fi
+
+          aws eks update-kubeconfig \
+            --region "${{ secrets.AWS_REGION }}" \
+            --name "$CLUSTER_NAME"
+
+          kubectl get nodes
+
+          echo "CLUSTER_NAME=$CLUSTER_NAME" >> "$GITHUB_ENV"
+
+      - name: Deploy to Kubernetes
+        env:
+          WAZUH_PUBLIC_IP: ${{ secrets.WAZUH_PUBLIC_IP }}
+        run: |
+          chmod +x deploy_preprod_k8s.sh
+          ./deploy_preprod_k8s.sh
+
+  Deploy_Monitoring:
+    runs-on: ubuntu-latest
+    needs: Deploy_to_Staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS CLI & kubectl
+        run: |
+          set -euo pipefail
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          unzip -o awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
+
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          kubectl version --client
+
+      - name: Update kubeconfig
+        run: |
+          set -euo pipefail
+          CLUSTER_NAME=$(aws eks list-clusters --region "${{ secrets.AWS_REGION }}" --query "clusters[0]" --output text)
+
+          if [ -z "$CLUSTER_NAME" ] || [ "$CLUSTER_NAME" == "None" ]; then
+            echo "No EKS cluster found in region ${{ secrets.AWS_REGION }}"
+            exit 1
+          fi
+
+          aws eks update-kubeconfig \
+            --region "${{ secrets.AWS_REGION }}" \
+            --name "$CLUSTER_NAME"
+
+      - name: Check Grafana admin secret
+        id: grafana_secret
+        env:
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${GRAFANA_ADMIN_PASSWORD}" ]; then
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "GRAFANA_ADMIN_PASSWORD is not configured. Skipping Prometheus and Grafana deployment."
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Helm
+        if: steps.grafana_secret.outputs.present == 'true'
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.15.4
+
+      # ------------------------------------------------------------------
+      # Prometheus + Grafana via kube-prometheus-stack
+      # ------------------------------------------------------------------
+      - name: Deploy Prometheus and Grafana
+        if: steps.grafana_secret.outputs.present == 'true'
+        env:
+          MONITORING_NAMESPACE: ${{ env.MONITORING_NAMESPACE }}
+          KUBE_PROMETHEUS_STACK_VERSION: ${{ env.KUBE_PROMETHEUS_STACK_VERSION }}
+          GRAFANA_ADMIN_PASSWORD: ${{ secrets.GRAFANA_ADMIN_PASSWORD }}
+        run: |
+          set -euo pipefail
+          bash deploy_monitoring.sh
+
+      - name: Verify Prometheus and Grafana
+        if: steps.grafana_secret.outputs.present == 'true'
+        env:
+          MONITORING_NAMESPACE: ${{ env.MONITORING_NAMESPACE }}
+        run: |
+          set -euo pipefail
+
+          bash verify_monitoring.sh
+
+  DAST_OWASP_ZAP:
+    runs-on: ubuntu-latest
+    needs: Deploy_to_Staging
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Install AWS CLI & kubectl
+        run: |
+          set -euo pipefail
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          sudo apt-get update -y
+          sudo apt-get install -y unzip
+          unzip -o awscliv2.zip
+          sudo ./aws/install --update
+          aws --version
+
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+          kubectl version --client
+
+      - name: Update kubeconfig
+        run: |
+          set -euo pipefail
+          CLUSTER_NAME=$(aws eks list-clusters --region "${{ secrets.AWS_REGION }}" --query "clusters[0]" --output text)
+          aws eks update-kubeconfig \
+            --region "${{ secrets.AWS_REGION }}" \
+            --name "$CLUSTER_NAME"
+
+      - name: Resolve Staging Endpoint
+        id: endpoint
+        run: |
+          set -euo pipefail
+          HOSTNAME=""
+          for i in $(seq 1 30); do
+            HOSTNAME=$(kubectl get svc frontend -n preprod -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' || true)
+            if [ -n "$HOSTNAME" ]; then
+              break
+            fi
+            echo "Waiting for LoadBalancer hostname... ($i/30)"
+            sleep 10
+          done
+
+          if [ -z "$HOSTNAME" ]; then
+            echo "Timed out waiting for LoadBalancer hostname"
+            exit 1
+          fi
+
+          target_url="http://${HOSTNAME}/"
+          echo "target_url=${target_url}" >> "$GITHUB_OUTPUT"
+
+          curl -sf "$target_url" || echo "Warm-up curl failed, continuing anyway"
+
+      # NOTE: cmd_options no longer overrides -J. The action's own defaults
+      # (report_json.json, report_md.md, report_html.html) are left intact so
+      # the action's internal post-step can find its expected report file.
+      - name: OWASP ZAP Scan
+        uses: zaproxy/action-baseline@v0.15.0
+        with:
+          target: ${{ steps.endpoint.outputs.target_url }}
+          allow_issue_writing: false
+
+      - name: Rename ZAP report
+        if: always()
+        run: mv report_json.json zap-report.json
+
+      - name: Upload ZAP Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: zap-report.json
+        if: always()
+
+      - name: Upload ZAP Scan to DefectDojo
+        if: always()
+        run: |
+          curl -X POST \
+          "${{ secrets.DEFECTDOJO_URL }}/api/v2/reimport-scan/" \
+          -H "Authorization: Token ${{ secrets.DEFECTDOJO_API_KEY }}" \
+          -F "scan_type=ZAP Scan" \
+          -F "file=@zap-report.json" \
+          -F "engagement=${{ secrets.DEFECTDOJO_ENGAGEMENT_ID }}" \
+          -F "test_title=OWASP ZAP DAST Scan" \
+          -F "deduplication_on_engagement=true" \
+          -F "close_old_findings=true" \
+          -F "do_not_reactivate=false" \
+          -F "active=true" \
+          -F "verified=false"
+
+      - name: Cleanup Staging Environment
+        if: always()
+        run: |
+          chmod +x destroy_preprod_k8s.sh
+          ./destroy_preprod_k8s.sh
+
+# Security_Gates_OPA:
+#   runs-on: ubuntu-latest
+#   needs: [DAST_OWASP_ZAP, Container_Image_Scan]
+#   steps:
+#     - uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
+#     - name: Security Gates with OPA
+#       run: |
+#         # Add OPA policy evaluation commands here
+
+# Deploy_to_Production:
+#   runs-on: ubuntu-latest
+#   needs: Security_Gates_OPA
+#   steps:
+#     - uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
+#     - name: Deploy to Production
+#       run: |
+#         # Add production deployment commands here
+
+# Monitor_and_Manage:
+#   runs-on: ubuntu-latest
+#   needs: Deploy_to_Production
+#   steps:
+#     - uses: actions/checkout@v4
+#       with:
+#         fetch-depth: 0
+#     - name: Monitor and Manage
+#       run: |
+#         # Add monitoring and management commands here

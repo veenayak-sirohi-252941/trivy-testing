@@ -1,0 +1,274 @@
+name: Trivy Security Scan 2
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master", "develop" ]
+  workflow_dispatch:
+    inputs:
+      scan_path:
+        description: 'Optional path to scan (relative to repository root; defaults to the whole repository)'
+        required: false
+        default: '.'
+
+permissions:
+  contents: read
+
+env:
+  TRIVY_VERSION: "0.76.2"
+  SCAN_PATH: ${{ github.event.inputs.scan_path || '.' }}
+
+jobs:
+  discover-and-scan:
+    name: Discover Projects & Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Gitleaks secret scan
+        uses: gitleaks/gitleaks-action@v2
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+          GITLEAKS_ENABLE_SUMMARY: true
+
+      - name: TruffleHog Git history scan
+        uses: trufflesecurity/trufflehog@main
+        continue-on-error: true
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+      - name: Validate scan path
+        run: |
+          if [[ "$SCAN_PATH" = /* || ! -d "$SCAN_PATH" ]]; then
+            echo "::error::Scan path must be an existing directory relative to the repository root: $SCAN_PATH"
+            exit 1
+          fi
+
+          SCAN_ROOT="$(realpath -e -- "$SCAN_PATH")"
+          case "$SCAN_ROOT/" in
+            "$GITHUB_WORKSPACE/"*) ;;
+            *)
+              echo "::error::Scan path must resolve inside the repository: $SCAN_PATH"
+              exit 1
+              ;;
+          esac
+
+          echo "SCAN_PATH=$SCAN_ROOT" >> "$GITHUB_ENV"
+
+      - name: TruffleHog filesystem scan
+        continue-on-error: true
+        run: |
+          docker run --rm \
+            -v "$SCAN_PATH:/tmp:ro" \
+            -w /tmp \
+            ghcr.io/trufflesecurity/trufflehog:latest \
+            filesystem /tmp --no-update --json \
+            | jq -r '"Finding: \(.DetectorName // "Unknown detector")\nLocation: \(.SourceMetadata.Data.Filesystem.file // "unknown file"):\(.SourceMetadata.Data.Filesystem.line // "unknown line")\nSecret: [REDACTED]\n"'
+
+      # ── 2. Install Trivy ─────────────────────────────────────────────────────
+      - name: Install Trivy
+        run: |
+          echo "::group::Installing Trivy"
+          set -euo pipefail
+          ARCHIVE="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          RELEASE_URL="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          TEMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TEMP_DIR"' EXIT
+
+          curl -fsSL "$RELEASE_URL/$ARCHIVE" -o "$TEMP_DIR/$ARCHIVE"
+          curl -fsSL "$RELEASE_URL/trivy_${TRIVY_VERSION}_checksums.txt" \
+            -o "$TEMP_DIR/checksums.txt"
+          grep -E "^[[:xdigit:]]{64}[[:space:]]+${ARCHIVE}$" \
+            "$TEMP_DIR/checksums.txt" > "$TEMP_DIR/expected.sha256"
+          (cd "$TEMP_DIR" && sha256sum --check expected.sha256)
+
+          tar -xzf "$TEMP_DIR/$ARCHIVE" -C "$TEMP_DIR" trivy
+          sudo install -m 0755 "$TEMP_DIR/trivy" /usr/local/bin/trivy
+          trivy --version | tee "$TEMP_DIR/version.txt"
+          grep -F "Version: ${TRIVY_VERSION}" "$TEMP_DIR/version.txt"
+          echo "::endgroup::"
+    
+      # ── 3. Filesystem scans: vuln, misconfig, secret (HIGH/CRITICAL, non-blocking) ──
+      - name: "Trivy FS scan (vuln)"
+        run: |
+          echo "::group::Trivy FS Scan - vuln - $SCAN_PATH"
+          trivy fs \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "$SCAN_PATH"
+          echo "::endgroup::"
+
+      - name: "Trivy FS scan (vuln) - GitHub Action"
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: ${{ env.SCAN_PATH }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          exit-code: "0"
+          format: table
+          version: latest
+
+      - name: "Trivy FS scan (misconfig)"
+        run: |
+          echo "::group::Trivy FS Scan - misconfig - $SCAN_PATH"
+          trivy fs \
+            --scanners misconfig \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "$SCAN_PATH"
+          echo "::endgroup::"
+
+      - name: "Trivy FS scan (secret)"
+        run: |
+          echo "::group::Trivy FS Scan - secret - $SCAN_PATH"
+          trivy fs \
+            --scanners secret \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            --skip-dirs "" \
+            --skip-files "" \
+            --secret-config trivy-secret.yaml \
+            "$SCAN_PATH"
+          echo "::endgroup::"
+
+      # ── 4. IaC / config scan in the selected path ───────────────────────────
+      - name: "Trivy config scan"
+        run: |
+          echo "::group::Trivy Config Scan"
+          trivy config \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            "$SCAN_PATH"
+          echo "::endgroup::"
+
+      # ── 5. Discover and build every Dockerfile in the selected path ─────────
+      - name: Discover and build Docker images
+        id: build-images
+        run: |
+          set -euo pipefail
+          mapfile -d '' DOCKERFILES < <(
+            find "$SCAN_PATH" \
+              \( -type d \( -name .git -o -name node_modules \) -prune \) -o \
+              \( -type f -name Dockerfile -print0 \) \
+              | sort -z
+          )
+
+          if [[ ${#DOCKERFILES[@]} -eq 0 ]]; then
+            echo "No Dockerfiles found under $SCAN_PATH; image scan tasks will be skipped."
+            echo "images<<EOF" >> "$GITHUB_OUTPUT"
+            echo "EOF" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          IMAGES=()
+          for DOCKERFILE in "${DOCKERFILES[@]}"; do
+            CONTEXT="$(dirname "$DOCKERFILE")"
+            RELATIVE_DOCKERFILE="${DOCKERFILE#"$SCAN_PATH"/}"
+            RELATIVE_CONTEXT="${CONTEXT#"$SCAN_PATH"/}"
+            if [[ "$CONTEXT" == "$SCAN_PATH" ]]; then
+              RELATIVE_CONTEXT="root"
+            fi
+
+            SAFE_NAME="$(printf '%s' "$RELATIVE_CONTEXT" \
+              | tr '[:upper:]' '[:lower:]' \
+              | sed -E 's/[^a-z0-9_.-]+/-/g; s/^[.-]+//; s/[.-]+$//')"
+            SAFE_NAME="${SAFE_NAME:-image}"
+            SAFE_NAME="${SAFE_NAME:0:80}"
+            NAME_HASH="$(printf '%s' "$RELATIVE_DOCKERFILE" | sha256sum | cut -c1-8)"
+            IMAGE="trivy-scan:${SAFE_NAME}-${NAME_HASH}"
+
+            echo "::group::Building image from $DOCKERFILE"
+            docker build --file "$DOCKERFILE" --tag "$IMAGE" "$CONTEXT"
+            echo "::endgroup::"
+            IMAGES+=("$IMAGE")
+          done
+
+          {
+            echo "images<<EOF"
+            printf '%s\n' "${IMAGES[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── 6. Image scan with VEX document ─────────────────────────────────────
+      - name: "Trivy image scan with VEX"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
+        run: |
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            if [[ -f "$SCAN_PATH/vex.json" ]]; then
+              trivy image \
+                --vex "$SCAN_PATH/vex.json" \
+                --severity HIGH,CRITICAL \
+                --exit-code 0 \
+                --format table \
+                "$IMAGE"
+            else
+              echo "No vex.json found in $SCAN_PATH; skipping VEX scan for $IMAGE."
+            fi
+          done <<< "$IMAGES"
+
+      # ── 7. Basic image scan ─────────────────────────────────────────────────
+      - name: "Trivy image scan"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
+        run: |
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"
+
+      # ── 8. Image config scan: misconfig + secret only ────────────────────────
+      - name: "Trivy image config scan (misconfig, secret)"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
+        run: |
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --image-config-scanners misconfig,secret \
+              --severity HIGH,CRITICAL \
+              --secret-config trivy-secret.yaml \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"
+
+      # ── 9. Full image scan: vuln + misconfig + secret, HIGH/CRITICAL only ───
+      - name: "Trivy image full scan (vuln, misconfig, secret - HIGH/CRITICAL)"
+        env:
+          IMAGES: ${{ steps.build-images.outputs.images }}
+        run: |
+          while IFS= read -r IMAGE; do
+            [[ -z "$IMAGE" ]] && continue
+            trivy image \
+              --scanners vuln,misconfig,secret \
+              --image-config-scanners misconfig,secret \
+              --secret-config trivy-secret.yaml \
+              --severity HIGH,CRITICAL \
+              --exit-code 0 \
+              --format table \
+              "$IMAGE"
+          done <<< "$IMAGES"

@@ -1,0 +1,108 @@
+---
+- name: Install and start SonarQube
+  hosts: sonarqube
+  become: true
+  vars:
+    default_container_image: sonarqube:community
+    docker_user: "{{ ansible_user | default(lookup('env','USER')) }}"
+  tasks:
+    - name: Refresh apt metadata
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+      retries: 5
+      delay: 10
+      register: apt_refresh
+      until: apt_refresh is succeeded
+      timeout: 1800
+
+    - name: Install required system packages
+      apt:
+        pkg:
+          - ca-certificates
+          - curl
+          - gnupg
+          - software-properties-common
+          - python3-pip
+          - python3-venv
+          - python3-setuptools
+        state: present
+        install_recommends: false
+      retries: 3
+      delay: 5
+      register: apt_install
+      until: apt_install is succeeded
+
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
+
+    - name: Download Docker GPG key
+      get_url:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        dest: /etc/apt/keyrings/docker.asc
+        mode: "0644"
+        force: true
+
+    - name: De-armor Docker GPG key for APT
+      command: gpg --dearmor --yes --output /etc/apt/keyrings/docker.gpg /etc/apt/keyrings/docker.asc
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+        filename: docker
+
+    - name: Install Docker Engine
+      apt:
+        pkg:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+        install_recommends: false
+
+    - name: Install Docker module for Python
+      apt:
+        name: python3-docker
+        state: present
+        install_recommends: false
+
+    - name: Enable and start Docker service
+      systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add user to docker group
+      user:
+        name: "{{ docker_user }}"
+        groups: docker
+        append: true
+
+    - name: Set vm.max_map_count for SonarQube
+      sysctl:
+        name: vm.max_map_count
+        value: "262144"
+        state: present
+        reload: true
+
+    - name: Pull SonarQube Docker image
+      community.docker.docker_image:
+        name: "{{ default_container_image }}"
+        source: pull
+
+    - name: Run SonarQube container
+      community.docker.docker_container:
+        name: sonarqube
+        image: "{{ default_container_image }}"
+        state: started
+        restart_policy: unless-stopped
+        ports:
+          - "9000:9000"
