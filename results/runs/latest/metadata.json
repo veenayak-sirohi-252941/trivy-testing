@@ -1,0 +1,76 @@
+{
+  "run_id": "latest",
+  "timestamp": "2026-11-14T15:15:30.444503+05:30",
+  "repository_commit": "873b5fdc3407f9207e171eccfcb42b44e2dca317",
+  "scan_target": "/home/veenayak_sirohi/images_image_scanning/trivy-testing",
+  "scan_scope": [
+    "repository root: application/, fixtures/, fixtures-extra/, misc/, root-level files and scanner configuration"
+  ],
+  "excluded_from_filesystem": [
+    ".git metadata",
+    "results generated output",
+    "temporary backup files"
+  ],
+  "runs": [
+    {
+      "scanner": "trivy",
+      "mode": "filesystem",
+      "status": "COMPLETED_WITH_FINDINGS",
+      "exit_code": 0,
+      "findings": 18,
+      "command": "docker run --network none --pull=never --rm --user 1001:27 --env HOME=/tmp --mount type=bind,src=/home/veenayak_sirohi/images_image_scanning/trivy-testing,dst=/repo,readonly --mount type=bind,src=/tmp/secret-scan-2_m8nyek,dst=/out sha256:52389f537db07a4dc0d289f61893ec791a3244d2f5cf21c819a2e874d72f3764 fs --scanners secret --secret-config '' --format json --output /out/findings.raw --skip-dirs .git --skip-dirs results /repo",
+      "error": null,
+      "image_name": "aquasec/trivy:latest",
+      "image_id": "sha256:52389f537db07a4dc0d289f61893ec791a3244d2f5cf21c819a2e874d72f3764",
+      "version": "Version: 0.76.2"
+    },
+    {
+      "scanner": "trufflehog",
+      "mode": "filesystem",
+      "status": "COMPLETED_WITH_FINDINGS",
+      "exit_code": 0,
+      "findings": 10,
+      "command": "docker run --network none --pull=never --rm --user 1001:27 --env HOME=/tmp --mount type=bind,src=/home/veenayak_sirohi/images_image_scanning/trivy-testing,dst=/repo,readonly --mount type=bind,src=/tmp/secret-scan-tog__auo,dst=/out sha256:c50b55a0cdcc7ac7ee8b29d209833a22d6e2b44d4f0d8fc87099e8c877cb6afe --no-update filesystem --no-verification --no-color --json --exclude-paths /out/exclude-paths.txt /repo",
+      "error": null,
+      "image_name": "trufflesecurity/trufflehog:latest",
+      "image_id": "sha256:c50b55a0cdcc7ac7ee8b29d209833a22d6e2b44d4f0d8fc87099e8c877cb6afe",
+      "version": "trufflehog 3.99.9"
+    },
+    {
+      "scanner": "trufflehog",
+      "mode": "git-history",
+      "status": "COMPLETED_WITH_FINDINGS",
+      "exit_code": 0,
+      "findings": 28,
+      "command": "docker run --network none --pull=never --rm --user 1001:27 --env HOME=/tmp --mount type=bind,src=/home/veenayak_sirohi/images_image_scanning/trivy-testing,dst=/repo,readonly --mount type=bind,src=/tmp/secret-scan-3wy7fctn,dst=/out sha256:c50b55a0cdcc7ac7ee8b29d209833a22d6e2b44d4f0d8fc87099e8c877cb6afe --no-update git file:///repo --no-verification --no-color --json",
+      "error": null,
+      "image_name": "trufflesecurity/trufflehog:latest",
+      "image_id": "sha256:c50b55a0cdcc7ac7ee8b29d209833a22d6e2b44d4f0d8fc87099e8c877cb6afe",
+      "version": "trufflehog 3.99.9"
+    },
+    {
+      "scanner": "gitleaks",
+      "mode": "filesystem",
+      "status": "COMPLETED_WITH_FINDINGS",
+      "exit_code": 1,
+      "findings": 174,
+      "command": "docker run --network none --pull=never --rm --user 1001:27 --env HOME=/tmp --mount type=bind,src=/home/veenayak_sirohi/images_image_scanning/trivy-testing,dst=/repo,readonly --mount type=bind,src=/tmp/secret-scan-2urw53rv,dst=/out --mount type=bind,src=/tmp/secret-scan-2urw53rv/gitleaks.toml,dst=/config/gitleaks.toml,readonly sha256:4b81af4c7b4159acfdbbbfede6647bf49b4c9f24dc2a2bbd4581f39d5223fcfa detect --source /repo --config /config/gitleaks.toml --report-format json --report-path /out/findings.raw --redact --no-git",
+      "error": null,
+      "image_name": "zricethezav/gitleaks:latest",
+      "image_id": "sha256:4b81af4c7b4159acfdbbbfede6647bf49b4c9f24dc2a2bbd4581f39d5223fcfa",
+      "version": "v8.30.1"
+    },
+    {
+      "scanner": "gitleaks",
+      "mode": "git-history",
+      "status": "COMPLETED_WITH_FINDINGS",
+      "exit_code": 1,
+      "findings": 218,
+      "command": "docker run --network none --pull=never --rm --user 1001:27 --env HOME=/tmp --mount type=bind,src=/home/veenayak_sirohi/images_image_scanning/trivy-testing,dst=/repo,readonly --mount type=bind,src=/tmp/secret-scan-f_4stiir,dst=/out --mount type=bind,src=/tmp/secret-scan-f_4stiir/gitleaks.toml,dst=/config/gitleaks.toml,readonly sha256:4b81af4c7b4159acfdbbbfede6647bf49b4c9f24dc2a2bbd4581f39d5223fcfa detect --source /repo --config /config/gitleaks.toml --report-format json --report-path /out/findings.raw --redact",
+      "error": null,
+      "image_name": "zricethezav/gitleaks:latest",
+      "image_id": "sha256:4b81af4c7b4159acfdbbbfede6647bf49b4c9f24dc2a2bbd4581f39d5223fcfa",
+      "version": "v8.30.1"
+    }
+  ]
+}

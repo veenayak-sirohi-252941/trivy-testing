@@ -1,0 +1,4 @@
+database:
+  username: ${DB_USERNAME}
+  password: ${DB_PASSWORD}
+# NEG-002: environment references only.

@@ -1,0 +1,20 @@
+# Python tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Scanner runs contain only sanitized reports; temporary raw reports are never
+# written here. Keep the generated runs visible for local review and retention.
+
+# Build and frontend dependencies
+node_modules/
+dist/
+build/
+
+# Local workspace credentials (scanner scope still includes these when present)
+.env
+.env.*
+!.env.example
+!.env.staging.example

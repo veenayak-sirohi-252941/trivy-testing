@@ -1,0 +1,7 @@
+# Fixture only; never deploy
+services:
+  app:
+    image: example.invalid/fixture:0.0.1
+    environment:
+      REGISTRY_PASSWORD: synthetic_registry_password_001
+      MYSQL_URL: mysql://fixture:synthetic_mysql_password_001@mysql:3306/fixture

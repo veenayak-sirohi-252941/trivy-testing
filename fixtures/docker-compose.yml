@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://fixture_user:synthetic_pg_password_001@db:5432/fixture # DB-001
+      ADMIN_PASSWORD: synthetic_compose_password_001 # PASS-004
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: fixture_user
+      POSTGRES_PASSWORD: synthetic_postgres_password_002 # DB-002

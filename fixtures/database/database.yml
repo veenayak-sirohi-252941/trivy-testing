@@ -1,0 +1,4 @@
+development:
+  adapter: postgresql
+  username: fixture_user
+  password: "synthetic_database_yaml_password_001" # DB-010

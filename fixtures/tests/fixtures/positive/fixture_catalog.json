@@ -1,0 +1,357 @@
+[
+  {
+    "id": "AWS-001",
+    "path": ".env.example",
+    "type": "AWS access key"
+  },
+  {
+    "id": "AWS-002",
+    "path": "aws/credentials.env",
+    "type": "AWS access key"
+  },
+  {
+    "id": "AWS-003",
+    "path": "aws/aws-config.json",
+    "type": "AWS credentials"
+  },
+  {
+    "id": "AWS-004",
+    "path": "src/config/db.py",
+    "type": "AWS access key"
+  },
+  {
+    "id": "AWS-005",
+    "path": "aws/credentials.env",
+    "type": "AWS secret key"
+  },
+  {
+    "id": "GITHUB-001",
+    "path": "github/github.env",
+    "type": "classic token shape"
+  },
+  {
+    "id": "GITHUB-002",
+    "path": "github/github.env",
+    "type": "OAuth token shape"
+  },
+  {
+    "id": "GITHUB-003",
+    "path": "github/.npmrc",
+    "type": "npm token shape"
+  },
+  {
+    "id": "GITHUB-004",
+    "path": ".env.staging.example",
+    "type": "fine grained token shape"
+  },
+  {
+    "id": "DB-001",
+    "path": "docker-compose.yml",
+    "type": "PostgreSQL URI"
+  },
+  {
+    "id": "DB-002",
+    "path": "docker-compose.yml",
+    "type": "Postgres password"
+  },
+  {
+    "id": "DB-003",
+    "path": "config/application.yaml",
+    "type": "PostgreSQL URI"
+  },
+  {
+    "id": "DB-004",
+    "path": "database/postgres.env",
+    "type": "Postgres password"
+  },
+  {
+    "id": "DB-005",
+    "path": "src/config/db.py",
+    "type": "MongoDB URI"
+  },
+  {
+    "id": "DB-006",
+    "path": "src/config/db.py",
+    "type": "database password"
+  },
+  {
+    "id": "DB-007",
+    "path": "database/postgres.env",
+    "type": "PostgreSQL URI"
+  },
+  {
+    "id": "DB-008",
+    "path": "database/mysql.env",
+    "type": "MySQL password"
+  },
+  {
+    "id": "DB-009",
+    "path": "database/mysql.env",
+    "type": "MySQL URI"
+  },
+  {
+    "id": "DB-010",
+    "path": "database/database.yml",
+    "type": "Postgres YAML password"
+  },
+  {
+    "id": "DB-011",
+    "path": "database/connection.properties",
+    "type": "Postgres properties password"
+  },
+  {
+    "id": "DB-012",
+    "path": "k8s/prod/secrets.yaml",
+    "type": "database password"
+  },
+  {
+    "id": "PASS-001",
+    "path": "src/services/auth_service.py",
+    "type": "Python password"
+  },
+  {
+    "id": "PASS-002",
+    "path": "config/application.yaml",
+    "type": "YAML password"
+  },
+  {
+    "id": "PASS-003",
+    "path": "config/config.json",
+    "type": "JSON password"
+  },
+  {
+    "id": "PASS-004",
+    "path": "docker-compose.yml",
+    "type": "Compose password"
+  },
+  {
+    "id": "API-001",
+    "path": "src/utils/api_client.py",
+    "type": "API key"
+  },
+  {
+    "id": "API-002",
+    "path": "src/utils/api_client.py",
+    "type": "third party key"
+  },
+  {
+    "id": "API-003",
+    "path": "src/utils/api_client.py",
+    "type": "API secret"
+  },
+  {
+    "id": "API-004",
+    "path": "src/utils/api_client.py",
+    "type": "Stripe test-shaped key"
+  },
+  {
+    "id": "API-005",
+    "path": "src/utils/api_client.py",
+    "type": "Slack token shape"
+  },
+  {
+    "id": "API-006",
+    "path": "src/utils/api_client.py",
+    "type": "Bearer token"
+  },
+  {
+    "id": "API-007",
+    "path": "src/services/auth_service.py",
+    "type": "service auth token"
+  },
+  {
+    "id": "API-008",
+    "path": "config/application.yaml",
+    "type": "client secret"
+  },
+  {
+    "id": "API-009",
+    "path": "api/api-keys.env",
+    "type": "API key"
+  },
+  {
+    "id": "API-010",
+    "path": "api/api-keys.env",
+    "type": "service API key"
+  },
+  {
+    "id": "API-011",
+    "path": "api/api-keys.env",
+    "type": "auth token"
+  },
+  {
+    "id": "API-012",
+    "path": "api/api-keys.env",
+    "type": "access token"
+  },
+  {
+    "id": "API-013",
+    "path": "api/api-keys.env",
+    "type": "client secret"
+  },
+  {
+    "id": "API-014",
+    "path": "api/authorization-example.sh",
+    "type": "Authorization bearer"
+  },
+  {
+    "id": "API-015",
+    "path": "k8s/prod/secrets.yaml",
+    "type": "client secret"
+  },
+  {
+    "id": "SSH-001",
+    "path": "scripts/provision_infrastructure.sh",
+    "type": "malformed OpenSSH block"
+  },
+  {
+    "id": "SSH-002",
+    "path": "scripts/provision_infrastructure.sh",
+    "type": "malformed RSA block"
+  },
+  {
+    "id": "SSH-003",
+    "path": "scripts/provision_infrastructure.sh",
+    "type": "malformed PGP block"
+  },
+  {
+    "id": "JWT-001",
+    "path": "api/request.json",
+    "type": "JWT shape"
+  },
+  {
+    "id": "JWT-002",
+    "path": "src/services/auth_service.py",
+    "type": "JWT shape"
+  },
+  {
+    "id": "JWT-003",
+    "path": "config/application.yaml",
+    "type": "auth token"
+  },
+  {
+    "id": "JWT-004",
+    "path": ".env.staging.example",
+    "type": "JWT bearer shape"
+  },
+  {
+    "id": "TF-001",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "database password"
+  },
+  {
+    "id": "TF-002",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "API key"
+  },
+  {
+    "id": "TF-003",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "registry password"
+  },
+  {
+    "id": "TF-004",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "deployment token"
+  },
+  {
+    "id": "TF-005",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "infrastructure API secret"
+  },
+  {
+    "id": "TF-006",
+    "path": "infra/terraform/variables.tfvars",
+    "type": "AWS access key"
+  },
+  {
+    "id": "K8S-001",
+    "path": "k8s/dev/secrets.yaml",
+    "type": "dev password"
+  },
+  {
+    "id": "K8S-002",
+    "path": "k8s/staging/secrets.yaml",
+    "type": "staging password"
+  },
+  {
+    "id": "K8S-003",
+    "path": "k8s/staging/secrets.yaml",
+    "type": "staging API token"
+  },
+  {
+    "id": "GITHUB-005",
+    "path": "docs/setup-runbook.md",
+    "type": "GitHub PAT documentation example"
+  },
+  {
+    "id": "PASS-005",
+    "path": "src/services/auth_service.py",
+    "type": "DB_PASSWORD assignment"
+  },
+  {
+    "id": "PASS-006",
+    "path": "src/services/auth_service.py",
+    "type": "ADMIN_PASSWORD assignment"
+  },
+  {
+    "id": "PASS-007",
+    "path": "src/services/auth_service.py",
+    "type": "SECRET assignment"
+  },
+  {
+    "id": "PASS-008",
+    "path": "src/services/auth_service.py",
+    "type": "DATABASE_PASSWORD assignment"
+  },
+  {
+    "id": "PASS-009",
+    "path": "src/services/auth_service.py",
+    "type": "lowercase admin_password assignment"
+  },
+  {
+    "id": "PASS-010",
+    "path": "src/services/auth_service.py",
+    "type": "CLIENT_SECRET assignment"
+  },
+  {
+    "id": "PASS-011",
+    "path": "src/services/auth_service.py",
+    "type": "lowercase secret assignment"
+  },
+  {
+    "id": "PASS-012",
+    "path": "scripts/deploy.sh",
+    "type": "shell client_secret assignment"
+  },
+  {
+    "id": "PASS-013",
+    "path": "docs/setup-runbook.md",
+    "type": "documented properties password"
+  },
+  {
+    "id": "PASS-014",
+    "path": "config/application.properties",
+    "type": "admin_password assignment"
+  },
+  {
+    "id": "PASS-015",
+    "path": "config/application.properties",
+    "type": "DATABASE_PASSWORD assignment"
+  },
+  {
+    "id": "API-016",
+    "path": ".github/workflows/build.yml",
+    "type": "workflow API key fixture"
+  },
+  {
+    "id": "JWT-005",
+    "path": ".github/workflows/build.yml",
+    "type": "workflow JWT-shaped value"
+  },
+  {
+    "id": "AWS-006",
+    "path": "src/config/db.py",
+    "type": "AWS secret access key"
+  }
+]

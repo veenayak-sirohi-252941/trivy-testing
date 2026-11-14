@@ -1,0 +1,7 @@
+database:
+  username: fixture_user
+  password: "synthetic_yaml_password_001" # PASS-002
+  url: "postgresql://fixture:synthetic_pg_password_001@localhost:5432/fixture" # DB-003
+application:
+  client_secret: "synthetic_yaml_client_secret_001" # API-008
+  auth_token: "synthetic_auth_token_001" # JWT-003

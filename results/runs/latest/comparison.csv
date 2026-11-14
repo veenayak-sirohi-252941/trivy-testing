@@ -1,0 +1,172 @@
+fixture_id,file_path,line_number,secret_category,credential_type,classification,expected_detection,gitleaks,trufflehog,trivy
+PASS-016,application/.env,2,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-006,application/.env,4,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-007,application/.env example,2,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-013,application/.env example,3,Database credential,PostgreSQL URI,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-017,application/.env example,7,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-017,application/.github/workflows/build.yml,84,API/application credential,API or authentication secret,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-018,application/.github/workflows/build.yml,111,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-019,application/.github/workflows/build.yml,150,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-020,application/.github/workflows/build.yml,243,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-021,application/.github/workflows/build.yml,283,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-007,application/.github/workflows/build.yml,305,AWS credentials,AWS access or secret key,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-008,application/.github/workflows/build.yml,363,AWS credentials,AWS access or secret key,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-018,application/.github/workflows/build.yml,399,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-022,application/.github/workflows/build.yml,410,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-023,application/.github/workflows/build.yml,419,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-019,application/.github/workflows/build.yml,423,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-024,application/.github/workflows/build.yml,429,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-009,application/.github/workflows/build.yml,449,AWS credentials,AWS access or secret key,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-025,application/.github/workflows/build.yml,525,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-014,application/Backend/.env example,2,Database credential,PostgreSQL URI,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-008,application/Backend/.env example,3,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-009,application/Backend/app.py,16,Authentication token,JWT-shaped token,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-010,application/Backend/app.py,34,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-020,application/Backend/app.py,46,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-021,application/Backend/app.py,70,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-022,application/Backend/app.py,79,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-023,application/Backend/app.py,94,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-026,application/Backend/app.py,100,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-011,application/Backend/requirements.txt,4,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-012,application/Frontend/package-lock.json,15,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-027,application/Frontend/package-lock.json,38,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-013,application/Frontend/package-lock.json,89,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-028,application/Frontend/package-lock.json,2125,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-014,application/Frontend/package-lock.json,2183,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-029,application/Frontend/package-lock.json,2517,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-015,application/Frontend/package.json,17,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-024,application/README.md,282,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-025,application/deploy_monitoring.sh,16,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-026,application/deploy_monitoring.sh,45,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-030,application/destroy_preprod_k8s.sh,100,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DOCKER-001,application/docker-compose.yml,9,Infrastructure credential,Container credential,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-015,application/docker-compose.yml,30,Database credential,PostgreSQL URI,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+DOCKER-002,application/docker-compose.yml,30,Infrastructure credential,Container credential,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-016,application/docker-compose.yml,31,Authentication token,JWT-shaped token,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+SSH-004,application/infra/ansible/inventory.ini,2,Cryptographic material,Private key block,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+SSH-005,application/infra/ansible/inventory.ini,5,Cryptographic material,Private key block,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+SSH-006,application/infra/ansible/inventory.ini,8,Cryptographic material,Private key block,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+K8S-004,application/k8s/preprod/secrets.yaml,12,Infrastructure credential,Kubernetes secret,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+DB-016,application/k8s/preprod/secrets.yaml,22,Database credential,PostgreSQL URI,POTENTIALLY_REAL,YES,DETECTED,DETECTED,NOT DETECTED
+JWT-017,application/k8s/preprod/secrets.yaml,24,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+K8S-005,application/k8s/prod/secrets.yaml,20,Infrastructure credential,Kubernetes secret,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+DB-017,application/k8s/prod/secrets.yaml,30,Database credential,PostgreSQL URI,POTENTIALLY_REAL,YES,DETECTED,DETECTED,NOT DETECTED
+K8S-006,application/k8s/prod/secrets.yaml,31,Infrastructure credential,Kubernetes secret,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-018,application/k8s/prod/secrets.yaml,32,Authentication token,JWT-shaped token,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-031,application/provision_infrastructure.sh,28,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-032,application/provision_infrastructure.sh,36,API/application credential,API or authentication secret,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-033,application/provision_infrastructure.sh,241,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+SSH-007,application/provision_infrastructure.sh,275,Cryptographic material,Private key block,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+SSH-008,application/provision_infrastructure.sh,277,Cryptographic material,Private key block,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-027,application/provision_infrastructure.sh,341,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-034,application/provision_infrastructure.sh,380,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-035,application/provision_infrastructure.sh,405,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-036,application/provision_infrastructure.sh,413,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-037,application/provision_infrastructure.sh,418,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-038,application/provision_infrastructure.sh,435,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-039,application/provision_infrastructure.sh,446,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-028,application/provision_infrastructure.sh,455,Password,Plain-text password assignment,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-040,application/provision_infrastructure.sh,457,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-041,application/provision_infrastructure.sh,475,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-042,application/provision_infrastructure.sh,479,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-043,application/provision_infrastructure.sh,482,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-044,application/provision_infrastructure.sh,489,API/application credential,API or authentication secret,POTENTIALLY_REAL,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-012,fixtures-extra/.trivy-test-fixtures/secrets.env,1,AWS credentials,AWS access or secret key,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+GITHUB-006,fixtures-extra/fake-secrets.txt,2,Source control credential,GitHub token,SYNTHETIC_POSITIVE,YES,DETECTED,DETECTED,DETECTED
+GITHUB-007,fixtures-extra/secret-test.txt,1,Source control credential,GitHub token,SYNTHETIC_POSITIVE,YES,DETECTED,DETECTED,NOT DETECTED
+AWS-001,fixtures/.env.example,2,AWS credentials,AWS access key,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+APP-001,fixtures/.env.example,4,Application credential,Credential-like assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-045,fixtures/.env.example,5,API/application credential,API or authentication secret,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-029,fixtures/.env.example,6,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+GITHUB-004,fixtures/.env.staging.example,2,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-004,fixtures/.env.staging.example,2,Authentication token,JWT bearer shape,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-016,fixtures/.github/workflows/build.yml,14,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-005,fixtures/.github/workflows/build.yml,14,Authentication token,JWT-shaped token,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,DETECTED
+MYSQL-001,fixtures/.gitleaks.toml,35,Database credential,MySQL URI,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-046,fixtures/SCANNER_RESULTS.md,40,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-047,fixtures/SCANNER_RESULTS.md,41,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-048,fixtures/SCANNER_RESULTS.md,42,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-009,fixtures/api/api-keys.env,1,API/application credential,API key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-010,fixtures/api/api-keys.env,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-011,fixtures/api/api-keys.env,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-012,fixtures/api/api-keys.env,2,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-013,fixtures/api/api-keys.env,3,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-014,fixtures/api/authorization-example.sh,3,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-049,fixtures/api/request.json,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-001,fixtures/api/request.json,1,Authentication token,JWT shape,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,DETECTED
+AWS-003,fixtures/aws/aws-config.json,1,AWS credentials,AWS credentials,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-010,fixtures/aws/aws-config.json,1,AWS credentials,AWS access or secret key,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-002,fixtures/aws/credentials.env,1,AWS credentials,AWS access key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-005,fixtures/aws/credentials.env,1,AWS credentials,AWS secret key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-014,fixtures/config/application.properties,4,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-050,fixtures/config/application.properties,5,API/application credential,API or authentication secret,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+PASS-015,fixtures/config/application.properties,5,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-030,fixtures/config/application.properties,6,Password,Plain-text password assignment,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+DB-003,fixtures/config/application.yaml,3,Database credential,PostgreSQL URI,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-002,fixtures/config/application.yaml,3,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-008,fixtures/config/application.yaml,4,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+JWT-003,fixtures/config/application.yaml,6,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-051,fixtures/config/config.json,2,API/application credential,API or authentication secret,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-003,fixtures/config/config.json,2,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+MONGO-001,fixtures/config/config.json,3,Database credential,MongoDB URI,PLACEHOLDER,NO,FALSE POSITIVE,FALSE POSITIVE,NOT DETECTED
+DB-011,fixtures/database/connection.properties,3,Database credential,Postgres properties password,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-031,fixtures/database/connection.properties,3,Password,Plain-text password assignment,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+DB-010,fixtures/database/database.yml,4,Database credential,Postgres YAML password,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-032,fixtures/database/database.yml,4,Password,Plain-text password assignment,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+DB-008,fixtures/database/mysql.env,2,Database credential,MySQL password,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-009,fixtures/database/mysql.env,2,Database credential,MySQL URI,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-033,fixtures/database/mysql.env,2,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-004,fixtures/database/postgres.env,2,Database credential,Postgres password,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-007,fixtures/database/postgres.env,2,Database credential,PostgreSQL URI,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-034,fixtures/database/postgres.env,2,Password,Plain-text password assignment,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DOCKER-003,fixtures/docker-compose.prod.yml,6,Infrastructure credential,Container credential,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+MYSQL-002,fixtures/docker-compose.prod.yml,7,Database credential,MySQL URI,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,NOT DETECTED
+DB-001,fixtures/docker-compose.yml,5,Database credential,PostgreSQL URI,SYNTHETIC_POSITIVE,YES,DETECTED,DETECTED,NOT DETECTED
+PASS-004,fixtures/docker-compose.yml,5,Infrastructure credential,Container credential,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-002,fixtures/docker-compose.yml,11,Database credential,Postgres password,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+DOCKER-004,fixtures/docker-compose.yml,11,Infrastructure credential,Container credential,PLACEHOLDER,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+GITHUB-005,fixtures/docs/setup-runbook.md,5,Source control credential,GitHub PAT documentation example,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-013,fixtures/docs/setup-runbook.md,5,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+GITHUB-003,fixtures/github/.npmrc,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,DETECTED
+GITHUB-001,fixtures/github/github.env,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+GITHUB-002,fixtures/github/github.env,1,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-011,fixtures/infra/terraform/variables.tf,33,AWS credentials,AWS access or secret key,PLACEHOLDER,NO,FALSE POSITIVE,NOT DETECTED,FALSE POSITIVE
+TF-001,fixtures/infra/terraform/variables.tfvars,2,Infrastructure credential,Terraform secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+TF-002,fixtures/infra/terraform/variables.tfvars,2,API/application credential,API key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+TF-003,fixtures/infra/terraform/variables.tfvars,2,Infrastructure credential,Terraform secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+TF-004,fixtures/infra/terraform/variables.tfvars,3,Infrastructure credential,Terraform secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+TF-005,fixtures/infra/terraform/variables.tfvars,4,Infrastructure credential,Terraform secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+TF-006,fixtures/infra/terraform/variables.tfvars,5,AWS credentials,AWS access key,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+K8S-001,fixtures/k8s/dev/secrets.yaml,9,Infrastructure credential,Kubernetes secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-015,fixtures/k8s/prod/secrets.yaml,9,Infrastructure credential,Kubernetes secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-012,fixtures/k8s/prod/secrets.yaml,9,Infrastructure credential,Kubernetes secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+K8S-002,fixtures/k8s/staging/secrets.yaml,9,Infrastructure credential,Kubernetes secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+K8S-003,fixtures/k8s/staging/secrets.yaml,9,Infrastructure credential,Kubernetes secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-012,fixtures/scripts/deploy.sh,5,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+SSH-001,fixtures/scripts/provision_infrastructure.sh,6,Application credential,Credential-like assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+SSH-002,fixtures/scripts/provision_infrastructure.sh,12,Application credential,Credential-like assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+SSH-003,fixtures/scripts/provision_infrastructure.sh,18,Application credential,Credential-like assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+AWS-004,fixtures/src/config/db.py,1,AWS credentials,AWS access key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+AWS-006,fixtures/src/config/db.py,1,AWS credentials,AWS secret access key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-006,fixtures/src/config/db.py,1,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+DB-005,fixtures/src/config/db.py,2,Database credential,MongoDB URI,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,DETECTED
+API-007,fixtures/src/services/auth_service.py,2,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+JWT-002,fixtures/src/services/auth_service.py,2,Authentication token,JWT shape,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-001,fixtures/src/services/auth_service.py,2,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-005,fixtures/src/services/auth_service.py,7,Database credential,DB_PASSWORD assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-006,fixtures/src/services/auth_service.py,7,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-007,fixtures/src/services/auth_service.py,7,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+PASS-008,fixtures/src/services/auth_service.py,8,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-009,fixtures/src/services/auth_service.py,9,Password,Plain-text password assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-010,fixtures/src/services/auth_service.py,10,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+PASS-011,fixtures/src/services/auth_service.py,11,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-001,fixtures/src/utils/api_client.py,2,API/application credential,API key,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-002,fixtures/src/utils/api_client.py,2,Application credential,Credential-like assignment,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-003,fixtures/src/utils/api_client.py,2,API/application credential,API secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,NOT DETECTED
+API-004,fixtures/src/utils/api_client.py,3,Application credential,Credential-like assignment,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-005,fixtures/src/utils/api_client.py,4,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,DETECTED,NOT DETECTED,NOT DETECTED
+API-006,fixtures/src/utils/api_client.py,6,API/application credential,API or authentication secret,SYNTHETIC_POSITIVE,YES,NOT DETECTED,NOT DETECTED,DETECTED
+NEG-001,fixtures/tests/fixtures/negative/placeholders.env,1,AWS credentials,AWS access or secret key,SYNTHETIC_NEGATIVE,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+NEG-002,fixtures/tests/fixtures/negative/placeholders.env,3,Application credential,Credential-like assignment,SYNTHETIC_NEGATIVE,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+NEG-003,fixtures/tests/fixtures/negative/placeholders.env,5,Password,Plain-text password assignment,SYNTHETIC_NEGATIVE,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED
+NEG-004,fixtures/tests/fixtures/negative/placeholders.yaml,3,Password,Plain-text password assignment,SYNTHETIC_NEGATIVE,NO,NOT DETECTED,NOT DETECTED,NOT DETECTED

@@ -1,0 +1,4 @@
+{
+ "fixture_id":"PASS-003", "password":"synthetic_json_password_001", "api_key":"synthetic_json_api_key_001",
+ "database":{"uri":"mongodb://fixture:synthetic_mongo_password_001@localhost:27017/fixture"}
+}
