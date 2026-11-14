@@ -1,0 +1,15 @@
+# Custom regex detector for the manual TruffleHog scans.
+# No verification endpoint is configured, so matches remain unverified.
+detectors:
+  - name: ManualGenericCredentialAssignment
+    keywords:
+      - password
+      - secret
+      - api_key
+      - api_secret
+      - client_secret
+      - access_token
+      - auth_token
+      - database_password
+    regex:
+      credential: '(?i)(password|secret|api[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|database[_-]?password)[[:space:]]*[:=][[:space:]]*["'']?([A-Za-z0-9_./+=:@-]{8,})'

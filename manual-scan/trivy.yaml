@@ -1,0 +1,17 @@
+# Custom credential assignment rule for the manual Trivy scan.
+rules:
+  - id: manual-generic-credential-assignment
+    category: general
+    title: Generic Credential Assignment
+    severity: HIGH
+    keywords:
+      - password
+      - secret
+      - api_key
+      - api_secret
+      - client_secret
+      - access_token
+      - auth_token
+      - database_password
+    regex: '(?i)(?P<key>password|secret|api[_-]?key|client[_-]?secret|access[_-]?token|auth[_-]?token|database[_-]?password)[[:space:]]*[:=][[:space:]]*["'']?(?P<secret>[A-Za-z0-9_./+=:@-]{8,})'
+    secret-group-name: secret

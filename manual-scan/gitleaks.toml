@@ -1,0 +1,102 @@
+title = "Secret Scan Fixtures"
+
+[extend]
+useDefault = true
+[[rules]]
+id = "fixture-aws-access-key"
+description = "Synthetic AWS access key"
+regex = '''\b(AKIA|ASIA)[A-Z0-9]{16}\b'''
+keywords = ["AKIA", "ASIA"]
+[[rules]]
+id = "fixture-aws-secret-key"
+description = "AWS secret key assignment"
+regex = '''(?i)aws_secret_access_key\s*[=:]\s*[\"']?([A-Za-z0-9/+=]{40})'''
+keywords = ["aws_secret_access_key"]
+[[rules]]
+id = "fixture-github-classic-pat"
+description = "GitHub classic token shape"
+regex = '''\bgh[pousr]_[A-Za-z0-9]{30,255}\b'''
+keywords = ["ghp_", "gho_", "ghu_", "ghs_", "ghr_"]
+[[rules]]
+id = "fixture-github-fine-grained-pat"
+description = "GitHub fine grained token shape"
+regex = '''(github_pat_[A-Za-z0-9_]+)'''
+keywords = ["github_pat_"]
+
+[[rules]]
+id = "fixture-postgres-uri"
+description = "PostgreSQL connection URI with embedded credentials"
+regex = '''(?i)postgres(?:ql)?://[^\s:'"]+:[^\s@'"]+@[^\s/]+'''
+keywords = ["postgres://", "postgresql://"]
+
+[[rules]]
+id = "fixture-mysql-uri"
+description = "MySQL connection URI with embedded credentials"
+regex = '''(?i)mysql://[^\s:'"]+:[^\s@'"]+@[^\s/]+'''
+keywords = ["mysql://"]
+
+[[rules]]
+id = "fixture-mongodb-uri"
+description = "MongoDB connection URI with embedded credentials"
+regex = '''(?i)mongodb(?:\+srv)?://[^\s:'"]+:[^\s@'"]+@[^\s/]+'''
+keywords = ["mongodb://", "mongodb+srv://"]
+
+[[rules]]
+id = "fixture-generic-password"
+description = "Generic password and secret assignments; placeholders excluded by minimum value length"
+regex = '''(?i:\b[A-Z0-9_]*(?:password|secret)\b)\s*[=:]\s*["']?([a-z][A-Za-z0-9_!@#$%^&*.-]{7,})'''
+keywords = ["password", "secret"]
+
+[[rules]]
+id = "fixture-database-password"
+description = "Database password assignments"
+regex = '''(?i:\b(?:db_password|database_password|postgres_password|mysql_password)\b)\s*[=:]\s*["']?([a-z][A-Za-z0-9_!@#$%^&*.-]{7,})'''
+keywords = ["db_password", "database_password", "postgres_password", "mysql_password"]
+
+[[rules]]
+id = "fixture-api-key"
+description = "Generic API key assignments"
+regex = '''(?i:\b(?:api_key|service_api_key|third_party_api_key)\b)\s*[=:]\s*["']?([a-z][A-Za-z0-9_./+-]{11,})'''
+keywords = ["api_key", "service_api_key", "third_party_api_key"]
+
+[[rules]]
+id = "fixture-api-secret"
+description = "API and client secret assignments"
+regex = '''(?i:\b(?:api_secret|client_secret)\b)\s*[=:]\s*["']?([a-z][A-Za-z0-9_!@#$%^&*.-]{7,})'''
+keywords = ["api_secret", "client_secret"]
+
+[[rules]]
+id = "fixture-bearer-token"
+description = "Bearer authorization token"
+regex = '''(?i)\bBearer\s+([A-Za-z0-9._~-]{16,})'''
+keywords = ["Bearer "]
+
+[[rules]]
+id = "fixture-client-secret"
+description = "Client secret assignment"
+regex = '''(?i:\bclient_secret\b)\s*[=:]\s*["']?([a-z][A-Za-z0-9_!@#$%^&*.-]{7,})'''
+keywords = ["client_secret"]
+
+[[rules]]
+id = "fixture-jwt"
+description = "JWT with three base64url-like segments"
+regex = '''\beyJ[A-Za-z0-9_-]{4,}\.eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\b'''
+keywords = ["eyJ"]
+
+[[rules]]
+id = "fixture-private-key-header"
+description = "PEM private key headers, including deliberately invalid test blocks"
+regex = '''-----BEGIN (?:OPENSSH PRIVATE KEY|RSA PRIVATE KEY|PGP PRIVATE KEY BLOCK)-----'''
+keywords = ["-----BEGIN"]
+
+[[rules]]
+id = "fixture-terraform-secret"
+description = "Terraform infrastructure secret variable assignments"
+regex = '''(?i)\b(?:database_password|api_key|registry_password|deployment_token|infrastructure_api_secret)\s*=\s*["']([^"']{8,})["']'''
+keywords = ["database_password", "registry_password", "deployment_token", "infrastructure_api_secret"]
+
+[[rules]]
+id = "fixture-registry-credentials"
+description = "Container registry password assignments"
+regex = '''(?i)\b(?:registry_password|docker_password)\s*[=:]\s*["']?([a-z][A-Za-z0-9_!@#$%^&*.-]{7,})'''
+keywords = ["registry_password", "docker_password"]
